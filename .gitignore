@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+serviceAccountKey.json
+venv/
+.venv/
+*.log
+.DS_Store
+instance/
+.vscode/
