@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<script>document.body.dataset.dashboard = "1";</script>
+<h1 class="text-2xl font-bold text-gray-800 mb-1">Dashboard</h1>
+<p class="text-gray-500 mb-6">{{ today }} - Cuyapo Branch</p>
+
+{% if low_tank_alerts %}
+  {% for tank in low_tank_alerts %}
+  <div class="bg-red-500 text-white rounded-xl px-5 py-3 mb-4 font-semibold flex items-center gap-2">
+    🚨 Boss, paubos na ang {{ tank.tank_type }} tank! ({{ "%.0f"|format(tank.level_percent) }}%) - Mag-refill ka na!
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% if low_stock_items %}
+  <div class="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-xl px-5 py-3 mb-4 text-sm">
+    ⚠️ Mababa na ang stock: {% for it in low_stock_items %}<strong>{{ it.item_name }}</strong> ({{ it.stock_qty }}){{ ", " if not loop.last }}{% endfor %}
+  </div>
+{% endif %}
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-2xl shadow p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wide">Sales Today</p>
+    <p class="text-2xl font-bold text-aqua-700 mt-1">₱{{ "{:,.2f}".format(totals.total_sales) }}</p>
+    <p class="text-xs text-gray-500 mt-1">{{ totals.total_containers }} containers</p>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wide">Delivered / Walk-in</p>
+    <p class="text-2xl font-bold text-gray-800 mt-1">{{ walkin_vs_delivered.delivered }} / {{ walkin_vs_delivered.walkin }}</p>
+    <p class="text-xs text-gray-500 mt-1">orders today</p>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wide">GCash / Cash</p>
+    <p class="text-lg font-bold text-gray-800 mt-1">₱{{ "{:,.0f}".format(totals.gcash) }} / ₱{{ "{:,.0f}".format(totals.cash) }}</p>
+  </div>
+  <div class="bg-white rounded-2xl shadow p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wide">Utang Today</p>
+    <p class="text-2xl font-bold text-red-500 mt-1">₱{{ "{:,.2f}".format(totals.utang) }}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-2xl shadow p-5">
+    <h2 class="font-semibold text-gray-800 mb-3">🛢️ Tank Levels</h2>
+    {% for tank in tanks %}
+    <div class="mb-3">
+      <div class="flex justify-between text-sm mb-1">
+        <span class="capitalize font-medium">{{ tank.tank_type }}</span>
+        <span>{{ "%.0f"|format(tank.level_percent) }}%</span>
+      </div>
+      <div class="w-full bg-gray-100 rounded-full h-3">
+        <div class="h-3 rounded-full {{ 'bg-red-500' if tank.level_percent < 50 else 'bg-aqua-500' }}" style="width: {{ tank.level_percent }}%"></div>
+      </div>
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Wala pang tank na naka-record. Pumunta sa Inventory para magdagdag.</p>
+    {% endfor %}
+  </div>
+
+  <div class="bg-white rounded-2xl shadow p-5">
+    <h2 class="font-semibold text-gray-800 mb-3">🚚 Delivery Tracker</h2>
+    <p class="text-sm text-gray-500 mb-2">Pending: <strong>{{ pending_orders|length }}</strong> | On Delivery: <strong>{{ on_delivery_orders|length }}</strong></p>
+    <ul class="divide-y divide-gray-100 max-h-56 overflow-y-auto">
+      {% for o in on_delivery_orders %}
+      <li class="py-2 flex justify-between text-sm">
+        <span>{{ o.customer_name }} - {{ o.containers_qty }} containers</span>
+        <span class="text-aqua-600">🛵 on delivery</span>
+      </li>
+      {% else %}
+      <li class="py-2 text-sm text-gray-400">Walang kasalukuyang delivery.</li>
+      {% endfor %}
+    </ul>
+    <a href="{{ url_for('orders.list_view') }}" class="text-aqua-600 text-sm hover:underline mt-2 inline-block">Tingnan lahat ng orders →</a>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

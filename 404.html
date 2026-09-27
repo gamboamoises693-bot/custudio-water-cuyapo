@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Not Found{% endblock %}
+{% block content %}
+<div class="text-center py-20">
+  <p class="text-6xl mb-4">💧❓</p>
+  <h1 class="text-2xl font-bold text-gray-700">404 - Wala pong ganitong page</h1>
+  <a href="{{ url_for('sales.dashboard') if current_user else url_for('auth.login') }}" class="text-aqua-600 hover:underline mt-4 inline-block">Balik sa Dashboard</a>
+</div>
+{% endblock %}
+{% block guest_content %}
+<div class="text-center py-20">
+  <p class="text-6xl mb-4">💧❓</p>
+  <h1 class="text-2xl font-bold text-gray-700">404 - Wala pong ganitong page</h1>
+  <a href="{{ url_for('auth.login') }}" class="text-aqua-600 hover:underline mt-4 inline-block">Balik sa Login</a>
+</div>
+{% endblock %}

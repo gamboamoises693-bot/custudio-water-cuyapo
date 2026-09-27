@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Broadcast{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-2">📢 Chat Broadcast</h1>
+<p class="text-sm text-gray-500 mb-6">
+  Ang message na ito ay ipapadala bilang <strong>personal chat message</strong> sa bawat customer
+  (hindi SMS). Kapag nag-reply sila, babalik itong personal 1-on-1 chat.
+</p>
+
+<div class="bg-white rounded-2xl shadow p-5 max-w-lg">
+  <form method="POST" class="space-y-3">
+    <textarea name="message" rows="4" required placeholder="Magandang umaga mga suki ng Custudio Cuyapo! May stock tayo 500 containers today" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+    <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Send to all customers</button>
+  </form>
+</div>
+{% endblock %}

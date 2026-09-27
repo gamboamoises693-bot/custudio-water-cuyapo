@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Inventory{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-6">Inventory & Tank Monitor</h1>
+
+{% if low_tank_alerts %}
+  {% for tank in low_tank_alerts %}
+  <div class="bg-red-500 text-white rounded-xl px-5 py-3 mb-4 font-semibold">🚨 Boss paubos na purified tank! ({{ "%.0f"|format(tank.level_percent) }}%) Mag-refill ka na!</div>
+  {% endfor %}
+{% endif %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-2xl shadow p-5">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="font-semibold text-gray-800">🛢️ Tanks</h2>
+      <button onclick="document.getElementById('tankModal').classList.remove('hidden')" class="text-xs bg-aqua-500 text-white px-3 py-1.5 rounded-lg">+ Add Tank</button>
+    </div>
+    {% for tank in tanks %}
+    <div class="mb-4 border border-gray-100 rounded-xl p-3">
+      <div class="flex justify-between text-sm mb-1">
+        <span class="capitalize font-medium">{{ tank.tank_type }}</span>
+        <span>{{ "%.0f"|format(tank.level_percent) }}%</span>
+      </div>
+      <div class="w-full bg-gray-100 rounded-full h-3 mb-2">
+        <div class="h-3 rounded-full {{ 'bg-red-500' if tank.level_percent < 50 else 'bg-aqua-500' }}" style="width: {{ tank.level_percent }}%"></div>
+      </div>
+      <form method="POST" action="{{ url_for('inventory.update_tank', tank_id=tank.id) }}" class="flex gap-2">
+        <input name="level_percent" type="number" min="0" max="100" placeholder="New level %" class="flex-1 border border-gray-300 rounded px-2 py-1 text-xs">
+        <button class="text-xs bg-gray-800 text-white px-3 py-1 rounded">Update</button>
+      </form>
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Wala pang naka-record na tank.</p>
+    {% endfor %}
+  </div>
+
+  <div class="bg-white rounded-2xl shadow p-5">
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="font-semibold text-gray-800">📦 Inventory Items</h2>
+      <button onclick="document.getElementById('itemModal').classList.remove('hidden')" class="text-xs bg-aqua-500 text-white px-3 py-1.5 rounded-lg">+ Add Item</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="text-xs text-gray-500 uppercase"><tr><th class="text-left py-1">Item</th><th class="text-left">Stock</th><th class="text-left">Alert At</th><th></th></tr></thead>
+      <tbody class="divide-y divide-gray-100">
+      {% for it in items %}
+        <tr class="{{ 'text-red-600 font-semibold' if it.stock_qty <= it.low_alert_qty }}">
+          <td class="py-2 capitalize">{{ it.item_name.replace('_',' ') }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('inventory.update_item', item_id=it.id) }}" class="flex gap-1 items-center">
+              <input name="stock_qty" type="number" value="{{ it.stock_qty }}" class="w-16 border border-gray-300 rounded px-1 py-0.5 text-xs">
+              <button class="text-xs bg-gray-800 text-white px-2 py-0.5 rounded">Save</button>
+            </form>
+          </td>
+          <td>{{ it.low_alert_qty }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('inventory.delete_item', item_id=it.id) }}">
+              <button class="text-xs text-red-500">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="text-center text-gray-400 py-4">Wala pang item.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tankModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+    <h2 class="font-bold text-lg mb-4">Add Tank</h2>
+    <form method="POST" action="{{ url_for('inventory.create_tank') }}" class="space-y-3">
+      <select name="tank_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <option value="raw">Raw Water</option>
+        <option value="purified">Purified Water</option>
+      </select>
+      <input name="level_percent" type="number" min="0" max="100" placeholder="Current level %" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('tankModal').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+        <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="itemModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+    <h2 class="font-bold text-lg mb-4">Add Inventory Item</h2>
+    <form method="POST" action="{{ url_for('inventory.create_item') }}" class="space-y-3">
+      <select name="item_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <option value="empty_bottle">Empty Bottle</option>
+        <option value="cap">Cap</option>
+        <option value="seal">Seal</option>
+        <option value="plastic">Plastic</option>
+      </select>
+      <input name="stock_qty" type="number" min="0" placeholder="Stock quantity" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="low_alert_qty" type="number" min="0" placeholder="Low stock alert threshold" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('itemModal').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+        <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
