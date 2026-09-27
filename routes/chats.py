@@ -20,23 +20,30 @@ def _allowed_image(filename):
 
 def _upload_chat_image(file_storage):
     """Uploads an image (GCash receipt / delivery photo) to Firebase Storage and
-    returns its public URL. In mock/demo mode (no real Firebase Storage configured),
-    saves it locally under static/uploads instead so the demo still works end-to-end.
+    returns its public URL. Falls back to saving the file locally under
+    static/uploads whenever Firebase Storage isn't usable - not configured
+    (mock/demo mode), or the Firebase project doesn't have the Blaze (billing)
+    plan that real Firebase Storage now requires. This keeps image uploads
+    working end-to-end even on a Firestore-only (Spark/free plan) project.
     """
     ext = file_storage.filename.rsplit(".", 1)[1].lower()
     filename = f"{uuid.uuid4().hex}.{ext}"
 
-    if USING_MOCK_DB:
-        upload_dir = os.path.join("static", "uploads")
-        os.makedirs(upload_dir, exist_ok=True)
-        local_path = os.path.join(upload_dir, filename)
-        file_storage.save(local_path)
-        return f"/static/uploads/{filename}"
+    if not USING_MOCK_DB and bucket is not None:
+        try:
+            blob = bucket.blob(f"chat_images/{filename}")
+            blob.upload_from_file(file_storage.stream, content_type=file_storage.content_type)
+            blob.make_public()
+            return blob.public_url
+        except Exception as e:
+            print(f"[chats] Firebase Storage upload failed ({e}); saving locally instead.")
+            file_storage.stream.seek(0)
 
-    blob = bucket.blob(f"chat_images/{filename}")
-    blob.upload_from_file(file_storage.stream, content_type=file_storage.content_type)
-    blob.make_public()
-    return blob.public_url
+    upload_dir = os.path.join("static", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    local_path = os.path.join(upload_dir, filename)
+    file_storage.save(local_path)
+    return f"/static/uploads/{filename}"
 
 
 @chats_bp.route("/")
