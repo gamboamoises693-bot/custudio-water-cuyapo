@@ -35,6 +35,28 @@
   </div>
 </div>
 
+<!-- Promo Redemption Report -->
+<div class="bg-white rounded-2xl shadow p-5 mb-6">
+  <h2 class="font-semibold text-gray-800 mb-3 capitalize">🎁 Promo Redemption Report ({{ period }})</h2>
+  <div class="grid grid-cols-3 gap-4 text-center">
+    <div>
+      <p class="text-xs text-gray-500">Redemptions</p>
+      <p class="text-lg font-bold text-gray-800">{{ redemption_summary.redemption_count }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-gray-500">Free Gallons Redeemed</p>
+      <p class="text-lg font-bold text-aqua-700">{{ "%.1f"|format(redemption_summary.total_free_gallons) }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-gray-500">Worth (₱)</p>
+      <p class="text-lg font-bold text-red-500">₱{{ "{:,.2f}".format(redemption_summary.total_discount_amount) }}</p>
+    </div>
+  </div>
+  {% if redemption_summary.redemption_count == 0 %}
+  <p class="text-sm text-gray-400 mt-3">Walang na-redeem na loyalty promo sa period na ito.</p>
+  {% endif %}
+</div>
+
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
   <!-- Per barangay -->
   <div class="bg-white rounded-2xl shadow p-5">
