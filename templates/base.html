@@ -34,7 +34,7 @@
   <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex md:flex-col">
     <div class="p-5 border-b border-gray-100">
       <div class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-10 h-10 rounded-full object-cover shrink-0">
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-10 h-10 rounded-full object-cover shrink-0 bg-aqua-100" onerror="this.onerror=null;this.style.display='none';">
         <div>
           <p class="font-bold text-aqua-700 leading-tight">CUSTODIO WATER</p>
           <p class="text-[10px] font-semibold text-aqua-600 leading-tight tracking-wide">REFILLING STATION</p>
@@ -70,12 +70,38 @@
 
   <!-- Mobile top bar -->
   <div class="flex-1 flex flex-col min-w-0">
-    <div class="md:hidden bg-aqua-500 text-white p-4 flex items-center justify-between">
+    <div class="md:hidden bg-aqua-500 text-white p-4 flex items-center justify-between relative z-40">
+      <button type="button" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')" class="text-2xl leading-none px-1 -ml-1" aria-label="Menu">☰</button>
       <span class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-8 h-8 rounded-full object-cover shrink-0 bg-white">
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-8 h-8 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
         <span class="font-bold text-sm leading-tight">CUSTODIO WATER<br><span class="text-[10px] font-semibold tracking-wide">REFILLING STATION - Cuyapo</span></span>
       </span>
-      <a href="{{ url_for('auth.logout') }}" class="text-xs underline">Logout</a>
+      <a href="{{ url_for('auth.logout') }}" class="text-xs underline shrink-0">Logout</a>
+    </div>
+
+    <!-- Mobile hamburger dropdown - full menu (everything the desktop sidebar has) -->
+    <div id="mobileMenu" class="hidden md:hidden bg-white border-b border-gray-200 shadow-lg absolute top-[64px] left-0 right-0 z-30 max-h-[80vh] overflow-y-auto">
+      <nav class="p-3 space-y-1 text-sm">
+        <a href="{{ url_for('sales.dashboard') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'sales.dashboard' }}">📊 Dashboard</a>
+        <a href="{{ url_for('customers.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'customers.list_view' }}">👥 Customers</a>
+        <a href="{{ url_for('chats.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'chats' and request.endpoint != 'chats.broadcast' }}">
+          💬 Chats
+          {% if unread_chats and unread_chats > 0 %}<span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ unread_chats }}</span>{% endif %}
+        </a>
+        <a href="{{ url_for('chats.broadcast') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'chats.broadcast' }}">📢 Broadcast</a>
+        <a href="{{ url_for('orders.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'orders.list_view' }}">🧾 Orders</a>
+        <a href="{{ url_for('deliveries.rider_app') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'deliveries' }}">🚚 Deliveries</a>
+        <a href="{{ url_for('inventory.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'inventory' }}">🛢️ Inventory</a>
+        <a href="{{ url_for('sales.reports') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'sales.reports' }}">📈 Reports</a>
+        <a href="{{ url_for('customers.activity_log') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'customers.activity_log' }}">🔐 Customer Portal Activity</a>
+        {% if current_user.role == 'owner' %}
+        <a href="{{ url_for('accounts.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'accounts' }}">👤 Accounts</a>
+        {% endif %}
+        <div class="border-t border-gray-100 mt-2 pt-2">
+          <p class="px-3 text-xs text-gray-500">{{ current_user.name }} · <span class="capitalize">{{ current_user.role }}</span></p>
+          <a href="{{ url_for('auth.logout') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700">🚪 Logout</a>
+        </div>
+      </nav>
     </div>
 
     <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">

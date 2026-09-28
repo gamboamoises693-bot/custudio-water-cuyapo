@@ -39,8 +39,62 @@
         {% if c.utang_amount and c.utang_amount > 0 %}<p class="text-red-500 font-semibold">Utang: ₱{{ "%.2f"|format(c.utang_amount) }}</p>{% endif %}
       </div>
     </a>
+    <button onclick="document.getElementById('editModal-{{ c.id }}').classList.remove('hidden')" title="Edit customer" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">✏️</button>
     <button onclick="document.getElementById('qrModal-{{ c.id }}').classList.remove('hidden')" title="QR auto-login code" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">▦</button>
     <button onclick="document.getElementById('pwModal-{{ c.id }}').classList.remove('hidden')" title="Set Customer Portal password" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">🔑</button>
+    {% if current_user.role == 'owner' %}
+    <form method="POST" action="{{ url_for('customers.delete', customer_id=c.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete si {{ c.name }}? Hindi na ito mababawi.');" class="shrink-0">
+      <button type="submit" title="Delete customer" class="text-red-500 hover:text-red-700 text-lg px-1">🗑️</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- Edit Customer Modal -->
+  <div id="editModal-{{ c.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-md my-8">
+      <h2 class="font-bold text-lg mb-4">Edit Customer</h2>
+      <form method="POST" action="{{ url_for('customers.edit', customer_id=c.id) }}" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Customer Type</label>
+          <select name="customer_type" onchange="custudioToggleBiz('edit-{{ c.id }}', this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+            {% for t in customer_types %}<option value="{{ t }}" {{ 'selected' if c.customer_type == t }}>{{ type_labels[t] }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Complete Name</label>
+          <input name="name" value="{{ c.name }}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <div id="bizFields-edit-{{ c.id }}" class="space-y-3 {{ 'hidden' if c.customer_type != 'reseller' }}">
+          <div>
+            <label class="text-xs font-semibold text-gray-500">Business Type</label>
+            <input name="business_type" value="{{ c.business_type }}" placeholder="e.g. Sari-sari Store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-500">Business Name</label>
+            <input name="business_name" value="{{ c.business_name }}" placeholder="e.g. Sari-sari ni Aling Puring" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Phone No.</label>
+          <input name="phone" value="{{ c.phone }}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Address</label>
+          <input name="address" value="{{ c.address }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Barangay</label>
+          <select name="barangay" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+            <option value="">- Pumili -</option>
+            {% for b in barangays %}<option value="{{ b }}" {{ 'selected' if b == c.barangay }}>{{ b }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="document.getElementById('editModal-{{ c.id }}').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+          <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- QR Auto-Login Modal -->
@@ -86,7 +140,7 @@
     <form method="POST" action="{{ url_for('customers.create') }}" class="space-y-3">
       <div>
         <label class="text-xs font-semibold text-gray-500">Customer Type</label>
-        <select name="customer_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        <select name="customer_type" required onchange="custudioToggleBiz('new', this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
           {% for t in customer_types %}<option value="{{ t }}">{{ type_labels[t] }}</option>{% endfor %}
         </select>
       </div>
@@ -94,13 +148,15 @@
         <label class="text-xs font-semibold text-gray-500">Complete Name</label>
         <input name="name" required placeholder="e.g. Juan Dela Cruz" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
       </div>
-      <div>
-        <label class="text-xs font-semibold text-gray-500">Business Type <span class="font-normal">(optional - reseller lang)</span></label>
-        <input name="business_type" placeholder="e.g. Sari-sari Store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
-      </div>
-      <div>
-        <label class="text-xs font-semibold text-gray-500">Business Name <span class="font-normal">(optional - reseller lang)</span></label>
-        <input name="business_name" placeholder="e.g. Sari-sari ni Aling Puring" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      <div id="bizFields-new" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Business Type</label>
+          <input name="business_type" placeholder="e.g. Sari-sari Store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500">Business Name</label>
+          <input name="business_name" placeholder="e.g. Sari-sari ni Aling Puring" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
       </div>
       <div>
         <label class="text-xs font-semibold text-gray-500">Phone No.</label>
@@ -132,4 +188,15 @@
     </form>
   </div>
 </div>
+
+<script>
+  // Shows/hides the Business Type + Business Name fields based on Customer
+  // Type - only Resellers have those, Walk-ins never do (see
+  // routes/customers.py which also enforces this server-side either way).
+  function custudioToggleBiz(suffix, customerType) {
+    var el = document.getElementById('bizFields-' + suffix);
+    if (!el) return;
+    el.classList.toggle('hidden', customerType !== 'reseller');
+  }
+</script>
 {% endblock %}
