@@ -1,8 +1,9 @@
 """MODULE: Accounts (owner/staff LOGIN management - not customers).
 
-Owner-only page so a super-admin (any account with role="owner" - both the
-branch owner AND Isesmo's separate account qualify, see auth.py's
-create_user()) can see every owner/staff login on the system and reset
+Locked to ONLY gamboamoises693@gmail.com (see auth.py's SUPER_ADMIN_EMAIL) -
+per owner's explicit request, not even the branch owner's own
+custodiocindy220@gmail.com login can see this page anymore. Lets that one
+super-admin account see every owner/staff login on the system and reset
 ANY of their passwords, without touching Firestore directly or running a
 one-off script (update_login_accounts.py) every time.
 
@@ -12,21 +13,21 @@ staff account. Does NOT allow deleting the last remaining owner account
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from auth import login_required, role_required, list_users, get_user, create_user, update_user_password, get_user_by_email
+from auth import login_required, super_admin_required, list_users, get_user, create_user, update_user_password, get_user_by_email
 
 accounts_bp = Blueprint("accounts", __name__, url_prefix="/accounts")
 
 
 @accounts_bp.route("/")
 @login_required
-@role_required("owner")
+@super_admin_required
 def list_view():
     return render_template("accounts.html", users=list_users())
 
 
 @accounts_bp.route("/new", methods=["POST"])
 @login_required
-@role_required("owner")
+@super_admin_required
 def create():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
@@ -52,7 +53,7 @@ def create():
 
 @accounts_bp.route("/<user_id>/reset-password", methods=["POST"])
 @login_required
-@role_required("owner")
+@super_admin_required
 def reset_password(user_id):
     new_password = request.form.get("new_password", "").strip()
     if len(new_password) < 4:

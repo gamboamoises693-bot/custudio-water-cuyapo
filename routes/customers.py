@@ -2,7 +2,7 @@
 
 import io
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort
-from auth import login_required, role_required
+from auth import login_required, role_required, super_admin_required
 from models import customers as customers_model
 from models import chats as chats_model
 from models import customer_auth
@@ -192,11 +192,15 @@ def set_password(customer_id):
 
 @customers_bp.route("/activity")
 @login_required
-@role_required("owner", "staff")
+@super_admin_required
 def activity_log():
     """MODULE 9: audit trail of Customer Portal logins (success + failed)
     and what logged-in customers did (ordered, redeemed, etc.) - the
-    self-service equivalent of Omega Ice's /customer_activity page."""
+    self-service equivalent of Omega Ice's /customer_activity page.
+
+    Locked to ONLY gamboamoises693@gmail.com per owner's explicit request
+    (see auth.py's SUPER_ADMIN_EMAIL / super_admin_required) - not even the
+    branch owner's own login sees this page anymore."""
     from firebase_config import db
 
     def _sorted(collection_name, limit=100):
