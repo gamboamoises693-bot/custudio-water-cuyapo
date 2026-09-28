@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Custodio Water{% endblock %} - Cuyapo Branch</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          aqua: {
+            50: '#e6f7fd', 100: '#cceffb', 200: '#99dff7', 300: '#66cff3',
+            400: '#33bfef', 500: '#00a8e8', 600: '#0086ba', 700: '#00658c',
+            800: '#00435e', 900: '#002230'
+          }
+        }
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<style>
+  body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+  .nav-link.active { background-color: #e6f7fd; color: #0086ba; font-weight: 600; }
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+{% if current_user %}
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex md:flex-col">
+    <div class="p-5 border-b border-gray-100">
+      <div class="flex items-center gap-2">
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-10 h-10 rounded-full object-cover shrink-0">
+        <div>
+          <p class="font-bold text-aqua-700 leading-tight">CUSTODIO WATER</p>
+          <p class="text-[10px] font-semibold text-aqua-600 leading-tight tracking-wide">REFILLING STATION</p>
+          <p class="text-xs text-gray-500">Cuyapo Branch</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 p-3 space-y-1 text-sm">
+      <a href="{{ url_for('sales.dashboard') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'sales.dashboard' }}">📊 Dashboard</a>
+      <a href="{{ url_for('customers.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'customers.list_view' }}">👥 Customers</a>
+      <a href="{{ url_for('chats.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'chats' and request.endpoint != 'chats.broadcast' }}">
+        💬 Chats
+        {% if unread_chats and unread_chats > 0 %}
+          <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ unread_chats }}</span>
+        {% endif %}
+      </a>
+      <a href="{{ url_for('chats.broadcast') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'chats.broadcast' }}">📢 Broadcast</a>
+      <a href="{{ url_for('orders.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'orders.list_view' }}">🧾 Orders</a>
+      <a href="{{ url_for('deliveries.rider_app') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'deliveries' }}">🚚 Deliveries</a>
+      <a href="{{ url_for('inventory.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'inventory' }}">🛢️ Inventory</a>
+      <a href="{{ url_for('sales.reports') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'sales.reports' }}">📈 Reports</a>
+      <a href="{{ url_for('customers.activity_log') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'customers.activity_log' }}">🔐 Customer Portal Activity</a>
+      {% if current_user.role == 'owner' %}
+      <a href="{{ url_for('accounts.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'accounts' }}">👤 Accounts</a>
+      {% endif %}
+    </nav>
+    <div class="p-4 border-t border-gray-100 text-sm">
+      <p class="font-medium text-gray-800">{{ current_user.name }}</p>
+      <p class="text-xs text-gray-500 capitalize">{{ current_user.role }}</p>
+      <a href="{{ url_for('auth.logout') }}" class="text-xs text-aqua-600 hover:underline">Logout</a>
+    </div>
+  </aside>
+
+  <!-- Mobile top bar -->
+  <div class="flex-1 flex flex-col min-w-0">
+    <div class="md:hidden bg-aqua-500 text-white p-4 flex items-center justify-between">
+      <span class="flex items-center gap-2">
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-8 h-8 rounded-full object-cover shrink-0 bg-white">
+        <span class="font-bold text-sm leading-tight">CUSTODIO WATER<br><span class="text-[10px] font-semibold tracking-wide">REFILLING STATION - Cuyapo</span></span>
+      </span>
+      <a href="{{ url_for('auth.logout') }}" class="text-xs underline">Logout</a>
+    </div>
+
+    <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-4 space-y-2">
+          {% for category, message in messages %}
+            {% set color = {'success':'bg-green-100 text-green-800 border-green-300','danger':'bg-red-100 text-red-800 border-red-300','warning':'bg-yellow-100 text-yellow-800 border-yellow-300'}.get(category, 'bg-aqua-100 text-aqua-800 border-aqua-300') %}
+            <div class="border {{ color }} px-4 py-2 rounded-lg text-sm">{{ message }}</div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 text-xs">
+      <a href="{{ url_for('sales.dashboard') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.endpoint == 'sales.dashboard' else 'text-gray-500' }}">📊<span>Home</span></a>
+      <a href="{{ url_for('customers.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.endpoint == 'customers.list_view' else 'text-gray-500' }}">👥<span>Cust.</span></a>
+      <a href="{{ url_for('chats.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.blueprint == 'chats' else 'text-gray-500' }}">💬<span>Chats</span></a>
+      <a href="{{ url_for('orders.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.endpoint == 'orders.list_view' else 'text-gray-500' }}">🧾<span>Orders</span></a>
+      <a href="{{ url_for('deliveries.rider_app') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.blueprint == 'deliveries' else 'text-gray-500' }}">🚚<span>Deliver</span></a>
+    </div>
+    <div class="h-16 md:hidden"></div>
+  </div>
+</div>
+{% else %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="max-w-md mx-auto mt-4 space-y-2 px-4">
+      {% for category, message in messages %}
+        {% set color = {'success':'bg-green-100 text-green-800 border-green-300','danger':'bg-red-100 text-red-800 border-red-300','warning':'bg-yellow-100 text-yellow-800 border-yellow-300'}.get(category, 'bg-aqua-100 text-aqua-800 border-aqua-300') %}
+        <div class="border {{ color }} px-4 py-2 rounded-lg text-sm">{{ message }}</div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block guest_content %}{% endblock %}
+{% endif %}
+
+</body>
+</html>
