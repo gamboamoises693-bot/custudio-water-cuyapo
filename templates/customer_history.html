@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Order History{% endblock %}
+{% block guest_content %}
+<div class="min-h-screen bg-gray-50 pb-10">
+  <div class="bg-aqua-500 text-white p-4 flex items-center gap-3">
+    <a href="{{ url_for('customer_portal.dashboard_page', customer_id=customer.id) }}" class="text-white text-xl">←</a>
+    <p class="font-bold">📋 Order History</p>
+  </div>
+
+  <div class="max-w-md mx-auto p-4 space-y-3">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-2">
+        {% for category, message in messages %}
+          {% set color = {'success':'bg-green-100 text-green-800 border-green-300','danger':'bg-red-100 text-red-800 border-red-300','warning':'bg-yellow-100 text-yellow-800 border-yellow-300'}.get(category, 'bg-aqua-100 text-aqua-800 border-aqua-300') %}
+          <div class="border {{ color }} px-4 py-2 rounded-lg text-sm">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% for o in orders %}
+    {% set badge = {
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'accepted': 'bg-purple-100 text-purple-800',
+      'on_delivery': 'bg-blue-100 text-blue-800',
+      'delivered': 'bg-gray-100 text-gray-800',
+      'paid': 'bg-green-100 text-green-800',
+      'utang': 'bg-red-100 text-red-800',
+    }.get(o.status, 'bg-gray-100 text-gray-800') %}
+    {# Tracking step reached: 0=Order Placed, 1=Accepted, 2=On the way, 3=Delivered #}
+    {% set step = {
+      'pending': 0, 'accepted': 1, 'on_delivery': 2,
+      'delivered': 3, 'paid': 3, 'utang': 3,
+    }.get(o.status, 0) %}
+    <div class="bg-white rounded-2xl shadow p-4">
+      <div class="flex items-center justify-between mb-1">
+        <p class="font-semibold text-gray-800 text-sm">{{ o.containers_qty }}x {{ o.container_label or "container" }}</p>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ badge }}">{{ o.status }}</span>
+      </div>
+      <p class="text-xs text-gray-400">{{ o.delivery_date or "Walang petsa" }}</p>
+      <p class="text-sm text-gray-600 mt-1">₱{{ "%.2f"|format(o.amount_due) }}{% if o.get('free_gallons_applied') %} · 🎁 {{ o.free_gallons_applied }} gallon libre (loyalty card){% endif %}</p>
+
+      <!-- Status tracking stepper -->
+      <div class="flex items-center mt-3 mb-1">
+        {% for label in ['Order Placed', 'Accepted', 'On the way', 'Delivered'] %}
+        <div class="flex-1 flex flex-col items-center relative">
+          {% if not loop.first %}
+          <div class="absolute top-2 right-1/2 w-full h-0.5 {{ 'bg-aqua-500' if step >= loop.index0 else 'bg-gray-200' }}" style="z-index:0;"></div>
+          {% endif %}
+          <div class="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white {{ 'bg-aqua-500' if step >= loop.index0 else 'bg-gray-200' }}" style="z-index:1;">
+            {% if step >= loop.index0 %}✓{% endif %}
+          </div>
+          <p class="text-[9px] text-center mt-1 leading-tight {{ 'text-aqua-700 font-semibold' if step >= loop.index0 else 'text-gray-400' }}">{{ label }}</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if o.get('spin_claimed') %}
+        {% if o.get('spin_bonus_gallons') %}
+        <p class="text-xs text-aqua-700 font-semibold mt-2">🎡 Free Spin: +{{ o.spin_bonus_gallons }} gallon sa loyalty card</p>
+        {% else %}
+        <p class="text-xs text-gray-400 font-semibold mt-2">🎡 Free Spin: mas swerte sa susunod!</p>
+        {% endif %}
+      {% elif o.spin_eligible %}
+        <button onclick="claimSpin('{{ o.id }}', this)" class="mt-2 w-full bg-aqua-500 hover:bg-aqua-600 text-white text-xs font-bold py-2 rounded-lg">🎡 Claim Free Spin!</button>
+      {% endif %}
+    </div>
+    {% else %}
+    <p class="text-center text-gray-400 text-sm py-10">Wala ka pang order.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+async function claimSpin(orderId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'Spinning...';
+  try {
+    const res = await fetch(`/api/customer/{{ customer.id }}/order/${orderId}/claim_spin`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.outerHTML = data.bonus_gallons > 0
+        ? `<p class="text-xs text-aqua-700 font-semibold mt-2">🎡 Free Spin: +${data.bonus_gallons} gallon sa loyalty card!</p>`
+        : `<p class="text-xs text-gray-400 font-semibold mt-2">🎡 Free Spin: mas swerte sa susunod!</p>`;
+    } else {
+      alert(data.error || 'Hindi na-claim.');
+      btn.disabled = false;
+      btn.textContent = '🎡 Claim Free Spin!';
+    }
+  } catch (e) {
+    alert('May error, subukan ulit.');
+    btn.disabled = false;
+    btn.textContent = '🎡 Claim Free Spin!';
+  }
+}
+</script>
+{% endblock %}
