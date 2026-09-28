@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Riders{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Rider Management</h1>
+  {% if current_user.role == 'owner' %}
+  <button onclick="document.getElementById('newRiderModal').classList.remove('hidden')" class="bg-aqua-500 hover:bg-aqua-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Add Rider</button>
+  {% endif %}
+</div>
+
+<div class="bg-white rounded-2xl shadow overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="text-left px-4 py-3">Name</th>
+        <th class="text-left px-4 py-3">Phone</th>
+        <th class="text-left px-4 py-3">Tricycle No.</th>
+        <th class="text-left px-4 py-3">Delivered Today</th>
+        <th class="text-left px-4 py-3">Collected Today</th>
+        <th class="text-left px-4 py-3">Status</th>
+        {% if current_user.role == 'owner' %}<th class="text-left px-4 py-3">Action</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for r in riders %}
+      <tr>
+        <td class="px-4 py-3 font-medium text-gray-800">{{ r.name }}</td>
+        <td class="px-4 py-3">{{ r.phone }}</td>
+        <td class="px-4 py-3">{{ r.tricycle_no }}</td>
+        <td class="px-4 py-3">{{ r.total_delivered_today }}</td>
+        <td class="px-4 py-3">₱{{ "%.2f"|format(r.total_collected_today) }}</td>
+        <td class="px-4 py-3">
+          {% if r.flag_daya %}
+          <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full">⚠️ Check collection</span>
+          {% else %}
+          <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">OK</span>
+          {% endif %}
+        </td>
+        {% if current_user.role == 'owner' %}
+        <td class="px-4 py-3">
+          <form method="POST" action="{{ url_for('riders.delete', rider_id=r.id) }}">
+            <button class="text-xs text-red-500">Delete</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-gray-400 py-6">Wala pang rider.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="text-xs text-gray-400 mt-3">⚠️ "Check collection" flags a rider who delivered containers today but has ₱0 collected without full utang - review with them directly.</p>
+
+<div id="newRiderModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+    <h2 class="font-bold text-lg mb-4">Add Rider</h2>
+    <form method="POST" action="{{ url_for('riders.create') }}" class="space-y-3">
+      <input name="name" required placeholder="Full name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="phone" required placeholder="Phone number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="tricycle_no" placeholder="Tricycle no. (optional)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <hr>
+      <p class="text-xs text-gray-500">Login account for Rider App (optional):</p>
+      <input name="login_email" type="email" placeholder="Rider login email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="login_password" type="password" placeholder="Rider login password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('newRiderModal').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+        <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
