@@ -42,6 +42,7 @@ def create_app():
                 session["user_id"] = user["id"]
                 session["user_name"] = user["name"]
                 session["user_role"] = user["role"]
+                session["user_email"] = user["email"]
                 session["rider_id"] = user.get("rider_id")
                 flash(f"Welcome back, {user['name']}!", "success")
                 next_url = request.args.get("next") or url_for("sales.dashboard")

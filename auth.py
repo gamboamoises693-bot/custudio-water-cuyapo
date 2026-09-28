@@ -16,6 +16,14 @@ from firebase_config import db
 
 USERS = "users"
 
+# Per owner's explicit request: the Accounts page (manage every login's
+# password) and the Customer Portal Activity page (customer login/activity
+# audit trail) are locked down to ONLY this one account - not even the
+# branch owner (custodiocindy220@gmail.com) or other role="owner" accounts
+# can see them anymore. Kept as a single constant so it's a one-line change
+# if this ever needs to move to another account.
+SUPER_ADMIN_EMAIL = "gamboamoises693@gmail.com"
+
 
 def create_user(email, password, name, role="staff", rider_id=None):
     ref = db.collection(USERS).document()
@@ -101,6 +109,8 @@ def current_user():
         "name": session.get("user_name"),
         "role": session.get("user_role"),
         "rider_id": session.get("rider_id"),
+        "email": session.get("user_email"),
+        "is_super_admin": (session.get("user_email") or "").strip().lower() == SUPER_ADMIN_EMAIL,
     }
 
 
@@ -127,3 +137,21 @@ def role_required(*allowed_roles):
             return view_func(*args, **kwargs)
         return wrapped
     return decorator
+
+
+def super_admin_required(view_func):
+    """Locks a page to ONLY the SUPER_ADMIN_EMAIL account - stricter than
+    role_required("owner"), which still lets in every role="owner" account
+    (e.g. the branch owner's own login). Use this for pages the owner
+    explicitly said should be Isesmo-only (Accounts, Customer Portal
+    Activity)."""
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Mag-login muna po.", "warning")
+            return redirect(url_for("auth.login", next=request.path))
+        if (session.get("user_email") or "").strip().lower() != SUPER_ADMIN_EMAIL:
+            flash("Wala kang access sa page na ito.", "danger")
+            return redirect(url_for("sales.dashboard"))
+        return view_func(*args, **kwargs)
+    return wrapped
