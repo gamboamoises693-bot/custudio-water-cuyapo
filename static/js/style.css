@@ -1,0 +1,11 @@
+/* Small overrides on top of Tailwind (loaded via CDN in base.html).
+   Most styling is done with Tailwind utility classes directly in the templates. */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background-color: #99dff7;
+  border-radius: 4px;
+}
