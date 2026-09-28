@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Customer Portal Activity{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-1">Customer Portal Activity</h1>
+<p class="text-sm text-gray-500 mb-6">Login attempts at aksyon ng customers gamit ang sarili nilang account sa <code>/customer</code>.</p>
+
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-2xl shadow p-4">
+    <h2 class="font-semibold text-gray-700 mb-3">🔐 Login Attempts</h2>
+    <div class="space-y-2 max-h-[32rem] overflow-y-auto">
+      {% for l in login_logs %}
+      <div class="border-b border-gray-50 pb-2 text-sm">
+        <div class="flex items-center justify-between">
+          <p class="font-medium text-gray-800">{{ l.customer_name or l.phone or "Unknown" }}</p>
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ 'bg-green-100 text-green-800' if l.success else 'bg-red-100 text-red-800' }}">
+            {{ 'Success' if l.success else 'Failed' }}
+          </span>
+        </div>
+        <p class="text-xs text-gray-400">{{ l.phone }} · {{ l.reason }}</p>
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-400">Wala pang login attempts.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow p-4">
+    <h2 class="font-semibold text-gray-700 mb-3">📋 Customer Activity</h2>
+    <div class="space-y-2 max-h-[32rem] overflow-y-auto">
+      {% for a in activity_logs %}
+      <div class="border-b border-gray-50 pb-2 text-sm">
+        <p class="font-medium text-gray-800">{{ a.customer_name or "Customer" }} - {{ a.action }}</p>
+        {% if a.details %}<p class="text-xs text-gray-400">{{ a.details }}</p>{% endif %}
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-400">Wala pang activity.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

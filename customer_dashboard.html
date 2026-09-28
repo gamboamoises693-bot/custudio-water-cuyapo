@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Customer Dashboard{% endblock %}
+{% block guest_content %}
+<div class="min-h-screen bg-gray-50 pb-20">
+  <div class="bg-aqua-500 text-white p-4 flex items-center justify-between">
+    <div>
+      <p class="font-bold leading-tight">🧤💧 CUSTODIO WATER</p>
+      <p class="text-[10px] font-semibold opacity-90 tracking-wide leading-tight">REFILLING STATION</p>
+      <p class="text-xs opacity-90 mt-0.5">Kumusta, {{ customer.name }}!</p>
+    </div>
+    <a href="{{ url_for('customer_portal.logout_page') }}" class="text-xs underline">Logout</a>
+  </div>
+
+  <div class="max-w-md mx-auto p-4 space-y-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-2">
+        {% for category, message in messages %}
+          {% set color = {'success':'bg-green-100 text-green-800 border-green-300','danger':'bg-red-100 text-red-800 border-red-300','warning':'bg-yellow-100 text-yellow-800 border-yellow-300'}.get(category, 'bg-aqua-100 text-aqua-800 border-aqua-300') %}
+          <div class="border {{ color }} px-4 py-2 rounded-lg text-sm">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Quick actions -->
+    <div class="grid grid-cols-2 gap-3">
+      <a href="{{ url_for('customer_portal.order_page', customer_id=customer.id) }}" class="bg-aqua-500 hover:bg-aqua-600 text-white rounded-2xl p-4 text-center font-semibold text-sm shadow">💧 Mag-order</a>
+      <a href="{{ url_for('customer_portal.history_page', customer_id=customer.id) }}" class="bg-white hover:bg-gray-50 text-gray-800 rounded-2xl p-4 text-center font-semibold text-sm shadow border border-gray-100">📋 Order History</a>
+    </div>
+
+    <!-- Account info -->
+    <div class="bg-white rounded-2xl shadow p-4 text-sm space-y-1">
+      <p class="text-gray-500 text-xs uppercase font-semibold mb-1">Account</p>
+      <p><span class="text-gray-500">Phone:</span> {{ customer.phone }}</p>
+      <p><span class="text-gray-500">Barangay:</span> {{ customer.barangay }}</p>
+      {% if customer.utang_amount and customer.utang_amount > 0 %}
+      <p class="text-red-600 font-semibold">Utang: ₱{{ "%.2f"|format(customer.utang_amount) }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Loyalty punch card (matches the printed card: 10 containers = 1 free container) -->
+    <div id="loyaltyCard" class="bg-white rounded-2xl shadow p-4 text-sm">
+      <p class="text-gray-400 text-xs">Loading loyalty card...</p>
+    </div>
+
+    <!-- Change password -->
+    <details class="bg-white rounded-2xl shadow p-4 text-sm">
+      <summary class="font-semibold text-gray-700 cursor-pointer">🔒 Palitan ang Password</summary>
+      <form method="POST" action="{{ url_for('customer_portal.api_change_password', customer_id=customer.id) }}" class="space-y-2 mt-3">
+        <input name="current_password" type="password" required placeholder="Kasalukuyang password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <input name="new_password" type="password" required minlength="4" placeholder="Bagong password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <button type="submit" class="w-full bg-gray-800 text-white rounded-lg py-2 text-sm font-semibold">Update Password</button>
+      </form>
+    </details>
+  </div>
+</div>
+
+<script>
+async function loadLoyaltyCard() {
+  const card = document.getElementById('loyaltyCard');
+  try {
+    const res = await fetch("{{ url_for('customer_portal.api_loyalty_card', customer_id=customer.id) }}");
+    const data = await res.json();
+    if (!data.ok) { card.innerHTML = '<p class="text-red-500 text-xs">Hindi ma-load ang loyalty card.</p>'; return; }
+
+    let html = `<div class="flex items-center justify-between mb-3">
+      <p class="text-gray-500 text-xs uppercase font-semibold">Loyalty Card</p>
+      <p class="text-aqua-700 font-bold text-xs">Bawat 100 gallon = 5 libre</p>
+    </div>`;
+
+    if (data.paused) {
+      html += `<p class="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-2 py-1 mb-3">Pansamantalang naka-pause ang loyalty card program. Ligtas pa rin ang gallons mo.</p>`;
+    }
+
+    // Progress bar (a 0-100 discrete box grid would be too many to render).
+    const pct = Math.min(100, Math.round((data.gallons / data.gallons_needed) * 100));
+    html += `<div class="w-full h-4 bg-gray-100 rounded-full overflow-hidden mb-2">
+      <div class="h-full bg-aqua-500 rounded-full" style="width: ${pct}%;"></div>
+    </div>`;
+
+    const gallonsLeft = Math.max(0, data.gallons_needed - data.gallons);
+    html += `<p class="text-xs text-gray-500 mb-2">${data.gallons.toFixed(1)}/${data.gallons_needed} gallons - ${gallonsLeft.toFixed(1)} gallons na lang para sa susunod na libre!</p>`;
+
+    if (data.free_gallons > 0) {
+      html += `<div class="bg-aqua-50 border border-aqua-100 rounded-lg px-3 py-2 text-xs text-aqua-800 font-semibold">🎁 May ${data.free_gallons} libreng gallon(s) ka na! Awtomatikong ma-a-apply ito sa susunod mong order.</div>`;
+    }
+    card.innerHTML = html;
+  } catch (e) {
+    card.innerHTML = '<p class="text-red-500 text-xs">Error loading loyalty card.</p>';
+  }
+}
+loadLoyaltyCard();
+
+// --- Optional web push (silently does nothing if push isn't configured) ---
+{% if push_enabled %}
+async function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+async function setupPush() {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.register('/static/js/sw.js');
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) return;
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: await urlBase64ToUint8Array("{{ vapid_public_key }}"),
+    });
+    await fetch("{{ url_for('customer_portal.api_push_subscribe') }}", {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sub),
+    });
+  } catch (e) { console.log('push setup skipped:', e); }
+}
+setupPush();
+{% endif %}
+</script>
+{% endblock %}

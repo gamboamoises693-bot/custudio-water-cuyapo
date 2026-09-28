@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Customer Login{% endblock %}
+{% block guest_content %}
+<div class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 rounded-full bg-aqua-500 flex items-center justify-center text-white text-2xl mx-auto mb-2">🧤💧</div>
+      <h1 class="text-xl font-bold text-aqua-700 leading-tight">CUSTODIO WATER<br><span class="text-sm font-semibold">REFILLING STATION</span></h1>
+      <p class="text-sm text-gray-500">Customer Portal - Cuyapo Branch</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow p-6">
+      <form method="POST" action="{{ url_for('customer_portal.api_login') }}" class="space-y-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-600">Phone Number</label>
+          <input name="phone" required placeholder="09xxxxxxxxx" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-600">Password</label>
+          <input name="password" type="password" required placeholder="Password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2.5 text-sm font-semibold">Login</button>
+      </form>
+      <button onclick="document.getElementById('forgotModal').classList.remove('hidden')" class="w-full text-center text-xs text-aqua-600 hover:underline mt-3">Nakalimutan ang password?</button>
+    </div>
+
+    <p class="text-center text-xs text-gray-400 mt-4">
+      Wala ka pang account? Makipag-ugnayan sa amin para ma-register ang phone number mo.
+    </p>
+  </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div id="forgotModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
+    <div>
+      <h2 class="font-bold text-lg mb-1">Step 1: Request Code</h2>
+      <form method="POST" action="{{ url_for('customer_portal.api_request_otp') }}" class="space-y-2">
+        <input name="phone" required placeholder="Phone number mo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <button type="submit" class="w-full bg-gray-800 text-white rounded-lg py-2 text-sm font-semibold">Send Code</button>
+      </form>
+    </div>
+    <hr class="border-gray-100">
+    <div>
+      <h2 class="font-bold text-lg mb-1">Step 2: Enter Code + New Password</h2>
+      <form method="POST" action="{{ url_for('customer_portal.api_verify_otp') }}" class="space-y-2">
+        <input name="phone" required placeholder="Phone number mo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <input name="otp" required placeholder="6-digit code" maxlength="6" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <input name="new_password" required minlength="4" type="password" placeholder="Bagong password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Reset Password</button>
+      </form>
+    </div>
+    <button type="button" onclick="document.getElementById('forgotModal').classList.add('hidden')" class="w-full border border-gray-300 rounded-lg py-2 text-sm">Close</button>
+  </div>
+</div>
+{% endblock %}
