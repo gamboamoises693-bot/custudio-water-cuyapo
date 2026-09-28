@@ -1,0 +1,86 @@
+"""
+Simple session-based auth with 3 roles: owner, staff, rider.
+
+NOTE: The spec mentions Firebase Auth. For MVP speed + zero extra Firebase
+Console setup, this uses a lightweight Firestore-backed 'users' collection
+with hashed passwords + Flask sessions instead. It's a drop-in: swap
+`verify_login()` for a Firebase Auth call later without touching any route
+that uses `login_required` / `role_required`, since those only look at
+Flask's session.
+"""
+
+from functools import wraps
+from flask import session, redirect, url_for, flash, request
+from werkzeug.security import generate_password_hash, check_password_hash
+from firebase_config import db
+
+USERS = "users"
+
+
+def create_user(email, password, name, role="staff", rider_id=None):
+    ref = db.collection(USERS).document()
+    user_id = ref.id
+    data = {
+        "id": user_id,
+        "email": email.strip().lower(),
+        "password_hash": generate_password_hash(password),
+        "name": name,
+        "role": role,  # owner | staff | rider
+        "rider_id": rider_id,
+    }
+    ref.set(data)
+    return data
+
+
+def get_user_by_email(email):
+    email = email.strip().lower()
+    for d in db.collection(USERS).stream():
+        u = d.to_dict()
+        if u.get("email") == email:
+            return u
+    return None
+
+
+def verify_login(email, password):
+    user = get_user_by_email(email)
+    if not user:
+        return None
+    if check_password_hash(user["password_hash"], password):
+        return user
+    return None
+
+
+def current_user():
+    if "user_id" not in session:
+        return None
+    return {
+        "id": session.get("user_id"),
+        "name": session.get("user_name"),
+        "role": session.get("user_role"),
+        "rider_id": session.get("rider_id"),
+    }
+
+
+def login_required(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Mag-login muna po.", "warning")
+            return redirect(url_for("auth.login", next=request.path))
+        return view_func(*args, **kwargs)
+    return wrapped
+
+
+def role_required(*allowed_roles):
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(*args, **kwargs):
+            if "user_id" not in session:
+                flash("Mag-login muna po.", "warning")
+                return redirect(url_for("auth.login", next=request.path))
+            if session.get("user_role") not in allowed_roles:
+                flash("Wala kang access sa page na ito.", "danger")
+                return redirect(url_for("sales.dashboard"))
+            return view_func(*args, **kwargs)
+        return wrapped
+    return decorator
