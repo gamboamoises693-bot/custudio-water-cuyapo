@@ -1,6 +1,7 @@
 """MODULE 1: Customer Management + Chat Profile."""
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+import io
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort
 from auth import login_required, role_required
 from models import customers as customers_model
 from models import chats as chats_model
@@ -34,6 +35,8 @@ def list_view():
         barangays=BARANGAYS_CUYAPO,
         selected_barangay=barangay,
         search=search or "",
+        customer_types=customers_model.VALID_TYPES,
+        type_labels=customers_model.TYPE_LABELS,
     )
 
 
@@ -42,16 +45,25 @@ def list_view():
 @role_required("owner", "staff")
 def create():
     name = request.form.get("name", "").strip()
-    barangay = request.form.get("barangay", "").strip()
+    customer_type = request.form.get("customer_type", "household").strip()
+    business_type = request.form.get("business_type", "").strip()
+    business_name = request.form.get("business_name", "").strip()
     phone = request.form.get("phone", "").strip()
-    cust_type = request.form.get("type", "residential")
+    address = request.form.get("address", "").strip()
+    barangay = request.form.get("barangay", "").strip()
+    password = request.form.get("password", "").strip()
 
-    if not name or not barangay or not phone:
-        flash("Kailangan lahat ng fields (name, barangay, phone).", "danger")
+    if not name or not phone or not address:
+        flash("Kailangan lahat ng required fields (Complete Name, Phone No., Address).", "danger")
         return redirect(url_for("customers.list_view"))
 
-    customers_model.create_customer(name, barangay, phone, cust_type)
-    flash(f"Nadagdag si {name} sa customers.", "success")
+    customers_model.create_customer(
+        name, customer_type, phone,
+        barangay=barangay, address=address,
+        business_type=business_type, business_name=business_name,
+        password=password or None,
+    )
+    flash(f"Nadagdag si {name} sa customers. May sarili na syang QR code para sa Customer Portal auto-login.", "success")
     return redirect(url_for("customers.list_view"))
 
 
@@ -60,13 +72,52 @@ def create():
 @role_required("owner", "staff")
 def edit(customer_id):
     updates = {}
-    for field in ("name", "barangay", "phone", "type"):
+    for field in ("name", "barangay", "phone", "address", "customer_type", "business_type", "business_name"):
         val = request.form.get(field)
-        if val:
+        if val is not None and val.strip():
             updates[field] = val.strip()
 
     customers_model.update_customer(customer_id, updates)
     flash("Na-update ang customer.", "success")
+    return redirect(url_for("customers.list_view"))
+
+
+@customers_bp.route("/<customer_id>/qr")
+@login_required
+def qr_image(customer_id):
+    """Generates the customer's QR-auto-login code as a PNG, on the fly (not
+    stored as a file - always freshly rendered from the customer's current
+    qr_token, so regenerate_qr_token() takes effect immediately). Encodes the
+    full /customer/qr-login/<token> URL so scanning it with any phone camera
+    (not just this app) opens straight into the Customer Portal, already
+    logged in - see routes/customer_portal.py's qr_login()."""
+    import qrcode
+
+    customer = customers_model.get_customer(customer_id)
+    if not customer:
+        abort(404)
+
+    login_url = url_for("customer_portal.qr_login", token=customer["qr_token"], _external=True)
+    img = qrcode.make(login_url, box_size=10, border=2)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype="image/png")
+
+
+@customers_bp.route("/<customer_id>/qr/regenerate", methods=["POST"])
+@login_required
+@role_required("owner", "staff")
+def qr_regenerate(customer_id):
+    """Invalidates the customer's old printed/saved QR (e.g. nawala o
+    napulot ng iba) and issues a fresh one - the old code stops working
+    right after this."""
+    customer = customers_model.get_customer(customer_id)
+    if not customer:
+        flash("Customer not found.", "danger")
+        return redirect(url_for("customers.list_view"))
+    customers_model.regenerate_qr_token(customer_id)
+    flash(f"Bagong QR code na para kay {customer.get('name')}. Hindi na gagana ang lumang QR nya.", "success")
     return redirect(url_for("customers.list_view"))
 
 

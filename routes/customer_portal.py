@@ -21,7 +21,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from firebase_config import db
 from models import customer_auth
 from models import loyalty
-from models.customers import get_customer
+from models.customers import get_customer, get_customer_by_qr_token
 from models.orders import get_order, list_orders, create_order
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
 import push_notify
@@ -48,6 +48,48 @@ def login_page():
     if session.get("customer_id"):
         return redirect(url_for("customer_portal.dashboard_page", customer_id=session["customer_id"]))
     return render_template("customer_login.html")
+
+
+@customer_portal_bp.route("/customer/qr-login/<token>")
+def qr_login(token):
+    """Tap/scan-to-login: the QR printed for a customer (see
+    routes/customers.py's qr_image()) encodes THIS url. Opening it logs the
+    customer straight into their own Customer Portal dashboard - no
+    phone/password typing needed, per owner's explicit request. Reuses the
+    same device-fingerprinting + login-log trail as the regular phone+
+    password login (api_login() above) so this still shows up in the
+    Customer Activity page for audit purposes.
+
+    NOTE (deliberate tradeoff, already flagged to and confirmed by the
+    owner): since this needs no password, anyone holding the physical
+    QR/card can log in as that customer. If a card is ever lost, use
+    Customers > 🔄 QR to invalidate the old code and issue a new one."""
+    customer = get_customer_by_qr_token(token)
+    if not customer:
+        flash("Invalid o expired na ang QR code na ito.", "danger")
+        return redirect(url_for("customer_portal.login_page"))
+
+    # Clear any leftover owner/staff identity - same rule as api_login().
+    session.pop("user_id", None)
+    session.pop("user_name", None)
+    session.pop("user_role", None)
+    session.pop("rider_id", None)
+    session["customer_id"] = customer["id"]
+    session["customer_name"] = customer.get("name")
+
+    is_new_device, device_id = customer_auth.check_and_register_device(customer["id"])
+    customer_auth.log_login(customer["id"], customer.get("name"), customer.get("phone", ""), True, "QR auto-login")
+    if is_new_device:
+        push_notify.send_push_to_customer(
+            db, customer["id"], "🔐 Bagong Device Login",
+            "May bagong device/browser na nag-login sa account mo gamit ang QR code mo. Kung hindi ikaw ito, sabihin agad sa amin.",
+            url=f"/customer/{customer['id']}/dashboard",
+        )
+
+    flash(f"Welcome, {customer.get('name')}!", "success")
+    resp = make_response(redirect(url_for("customer_portal.dashboard_page", customer_id=customer["id"])))
+    customer_auth.set_device_cookie(resp, device_id)
+    return resp
 
 
 @customer_portal_bp.route("/customer/logout")
