@@ -98,7 +98,23 @@ def create_app():
                 unread = total_unread_for_owner()
             except Exception:
                 unread = 0
-        return {"current_user": current_user(), "unread_chats": unread}
+
+        # Logo robustness: auto-detect whichever image extension actually
+        # made it onto disk (static/images/logo.*) instead of hardcoding
+        # logo.jpg everywhere. The most common cause of "hindi lumalabas
+        # ang logo" on a mobile GitHub upload is uploading it as a
+        # different extension (or to the wrong folder) than the code
+        # expects - this way, re-uploading as .png/.jpeg/.webp just works
+        # without needing another code change. Falls back to logo.jpg (with
+        # the onerror="hide" already on every <img> tag) if nothing is found.
+        logo_filename = "images/logo.jpg"
+        for ext in ("jpg", "jpeg", "png", "webp"):
+            candidate = os.path.join(app.static_folder, "images", f"logo.{ext}")
+            if os.path.isfile(candidate):
+                logo_filename = f"images/logo.{ext}"
+                break
+
+        return {"current_user": current_user(), "unread_chats": unread, "logo_filename": logo_filename}
 
     return app
 
