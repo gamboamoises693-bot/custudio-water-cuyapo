@@ -3,10 +3,13 @@
 {% block guest_content %}
 <div class="min-h-screen bg-gray-50 pb-20">
   <div class="bg-aqua-500 text-white p-4 flex items-center justify-between">
-    <div>
-      <p class="font-bold leading-tight">🧤💧 CUSTODIO WATER</p>
-      <p class="text-[10px] font-semibold opacity-90 tracking-wide leading-tight">REFILLING STATION</p>
-      <p class="text-xs opacity-90 mt-0.5">Kumusta, {{ customer.name }}!</p>
+    <div class="flex items-center gap-2">
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-9 h-9 rounded-full object-cover shrink-0 bg-white">
+      <div>
+        <p class="font-bold leading-tight">CUSTODIO WATER</p>
+        <p class="text-[10px] font-semibold opacity-90 tracking-wide leading-tight">REFILLING STATION</p>
+        <p class="text-xs opacity-90 mt-0.5">Kumusta, {{ customer.name }}!</p>
+      </div>
     </div>
     <a href="{{ url_for('customer_portal.logout_page') }}" class="text-xs underline">Logout</a>
   </div>
