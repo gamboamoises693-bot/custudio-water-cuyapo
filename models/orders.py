@@ -36,6 +36,13 @@ DELIVERIES = "deliveries"
 VALID_STATUSES = ("pending", "accepted", "on_delivery", "delivered", "paid", "utang")
 VALID_PAYMENT_TYPES = ("cash", "gcash", "utang")
 
+# Walk-in orders (no linked customer account) - for buyers who don't want to
+# register/join the loyalty promo. Sentinel customer_id used instead of a
+# real Firestore customer doc id; every function below treats it as "no
+# customer" (no loyalty gallons, no utang tracking, no chat thread).
+WALKIN_CUSTOMER_ID = "walkin"
+WALKIN_CUSTOMER_NAME = "Walk-in (No Account)"
+
 
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -72,9 +79,17 @@ def create_order(customer_id, containers_qty, delivery_date=None, chat_thread_id
     since the discount is computed from this order's own gallons/amount."""
     from models.customers import get_customer, increment_total_orders
 
-    customer = get_customer(customer_id)
-    if not customer:
-        raise ValueError("Customer not found")
+    if customer_id == WALKIN_CUSTOMER_ID:
+        # No account, no loyalty program, no chat thread - per owner's
+        # explicit request, for buyers who just want to pay and go.
+        customer_name = WALKIN_CUSTOMER_NAME
+        resolved_thread_id = chat_thread_id
+    else:
+        customer = get_customer(customer_id)
+        if not customer:
+            raise ValueError("Customer not found")
+        customer_name = customer.get("name")
+        resolved_thread_id = chat_thread_id or customer.get("chat_thread_id")
 
     catalog_entry = get_container_type(container_type) or get_container_type(DEFAULT_CONTAINER_TYPE)
     unit_price = float(catalog_entry["price"])
@@ -87,7 +102,7 @@ def create_order(customer_id, containers_qty, delivery_date=None, chat_thread_id
     data = {
         "id": order_id,
         "customer_id": customer_id,
-        "customer_name": customer.get("name"),
+        "customer_name": customer_name,
         "container_type": container_type if get_container_type(container_type) else DEFAULT_CONTAINER_TYPE,
         "container_label": catalog_entry["label"],
         "unit_price": unit_price,
@@ -99,10 +114,11 @@ def create_order(customer_id, containers_qty, delivery_date=None, chat_thread_id
         "order_date": server_timestamp(),
         "delivery_date": delivery_date or "",
         "status": "pending",
-        "chat_thread_id": chat_thread_id or customer.get("chat_thread_id"),
+        "chat_thread_id": resolved_thread_id,
     }
     order_ref.set(data)
-    increment_total_orders(customer_id)
+    if customer_id != WALKIN_CUSTOMER_ID:
+        increment_total_orders(customer_id)
     return data
 
 
@@ -267,6 +283,18 @@ def list_deliveries_for_date(date_str):
 
 def list_all_deliveries():
     return [d.to_dict() for d in db.collection(DELIVERIES).stream()]
+
+
+def delete_order(order_id):
+    """Hard delete - super-admin only (see routes/orders.py's
+    @super_admin_required delete()). Removes the order AND any linked
+    delivery record so it doesn't leave orphaned rows in Reports/Sales
+    totals. Does NOT reverse loyalty gallons or utang that were already
+    applied when the order was delivered - undo those by hand first if the
+    order being deleted was already paid/utang."""
+    db.collection(ORDERS).document(order_id).delete()
+    for d in db.collection(DELIVERIES).where("order_id", "==", order_id).stream():
+        d.reference.delete()
 
 
 # Public alias - safe for other modules (e.g. routes/sales.py) to use directly
