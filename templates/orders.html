@@ -13,7 +13,18 @@
   {% endfor %}
 </form>
 
-<div class="bg-white rounded-2xl shadow overflow-x-auto">
+{% macro status_badge(status) %}
+<span class="text-xs px-2 py-1 rounded-full
+  {% if status == 'pending' %}bg-yellow-100 text-yellow-700
+  {% elif status == 'accepted' %}bg-purple-100 text-purple-700
+  {% elif status == 'on_delivery' %}bg-aqua-100 text-aqua-700
+  {% elif status == 'delivered' %}bg-blue-100 text-blue-700
+  {% elif status == 'paid' %}bg-green-100 text-green-700
+  {% else %}bg-red-100 text-red-700{% endif %}">{{ status.replace('_',' ') }}</span>
+{% endmacro %}
+
+<!-- Desktop/tablet: table -->
+<div class="bg-white rounded-2xl shadow overflow-x-auto hidden md:block">
   <table class="w-full text-sm">
     <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
       <tr>
@@ -35,28 +46,27 @@
         <td class="px-4 py-3">{{ o.containers_qty }}</td>
         <td class="px-4 py-3">₱{{ "%.2f"|format(o.amount_due) }}</td>
         <td class="px-4 py-3">{{ o.delivery_date or "-" }}</td>
-        <td class="px-4 py-3">
-          <span class="text-xs px-2 py-1 rounded-full
-            {% if o.status == 'pending' %}bg-yellow-100 text-yellow-700
-            {% elif o.status == 'accepted' %}bg-purple-100 text-purple-700
-            {% elif o.status == 'on_delivery' %}bg-aqua-100 text-aqua-700
-            {% elif o.status == 'delivered' %}bg-blue-100 text-blue-700
-            {% elif o.status == 'paid' %}bg-green-100 text-green-700
-            {% else %}bg-red-100 text-red-700{% endif %}">{{ o.status.replace('_',' ') }}</span>
-        </td>
+        <td class="px-4 py-3">{{ status_badge(o.status) }}</td>
         <td class="px-4 py-3 text-xs text-gray-400">{{ o.id }}</td>
         <td class="px-4 py-3">
-          {% if o.status == 'pending' %}
-          <form method="POST" action="{{ url_for('orders.accept', order_id=o.id) }}">
-            <button class="text-xs bg-aqua-500 text-white px-2 py-1 rounded">Accept</button>
-          </form>
-          {% elif o.status == 'accepted' %}
-          <form method="POST" action="{{ url_for('orders.start_delivery', order_id=o.id) }}">
-            <button class="text-xs bg-aqua-500 text-white px-2 py-1 rounded">Start Delivery</button>
-          </form>
-          {% elif o.status == 'on_delivery' %}
-          <span class="text-xs text-gray-400">Sa Deliveries page</span>
-          {% endif %}
+          <div class="flex flex-wrap gap-1">
+            {% if o.status == 'pending' %}
+            <form method="POST" action="{{ url_for('orders.accept', order_id=o.id) }}">
+              <button class="text-xs bg-aqua-500 text-white px-2 py-1 rounded">Accept</button>
+            </form>
+            {% elif o.status == 'accepted' %}
+            <form method="POST" action="{{ url_for('orders.start_delivery', order_id=o.id) }}">
+              <button class="text-xs bg-aqua-500 text-white px-2 py-1 rounded">Start Delivery</button>
+            </form>
+            {% elif o.status == 'on_delivery' %}
+            <span class="text-xs text-gray-400">Sa Deliveries page</span>
+            {% endif %}
+            {% if current_user.is_super_admin %}
+            <form method="POST" action="{{ url_for('orders.delete', order_id=o.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete ang order na ito? Hindi na ito mababawi.');">
+              <button class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">🗑️</button>
+            </form>
+            {% endif %}
+          </div>
         </td>
       </tr>
       {% else %}
@@ -66,12 +76,48 @@
   </table>
 </div>
 
+<!-- Mobile (small phones, e.g. 6-inch): stacked cards, no horizontal scrolling/table needed -->
+<div class="md:hidden space-y-3">
+  {% for o in orders %}
+  <div class="bg-white rounded-2xl shadow p-4">
+    <div class="flex items-start justify-between gap-2 mb-1">
+      <p class="font-semibold text-gray-800 text-sm break-words">{{ o.customer_name }}</p>
+      {{ status_badge(o.status) }}
+    </div>
+    <p class="text-xs text-gray-500">{{ o.containers_qty }}x {{ o.container_label or "-" }} · ₱{{ "%.2f"|format(o.amount_due) }}</p>
+    <p class="text-xs text-gray-400">📅 {{ o.delivery_date or "Walang petsa" }}</p>
+    <p class="text-[10px] text-gray-300 break-all mt-1">ID: {{ o.id }}</p>
+    <div class="flex flex-wrap gap-2 mt-3">
+      {% if o.status == 'pending' %}
+      <form method="POST" action="{{ url_for('orders.accept', order_id=o.id) }}" class="flex-1">
+        <button class="w-full text-xs bg-aqua-500 text-white px-2 py-2 rounded-lg font-semibold">Accept</button>
+      </form>
+      {% elif o.status == 'accepted' %}
+      <form method="POST" action="{{ url_for('orders.start_delivery', order_id=o.id) }}" class="flex-1">
+        <button class="w-full text-xs bg-aqua-500 text-white px-2 py-2 rounded-lg font-semibold">Start Delivery</button>
+      </form>
+      {% elif o.status == 'on_delivery' %}
+      <span class="flex-1 text-xs text-gray-400 py-2">Sa Deliveries page</span>
+      {% endif %}
+      {% if current_user.is_super_admin %}
+      <form method="POST" action="{{ url_for('orders.delete', order_id=o.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete ang order na ito? Hindi na ito mababawi.');">
+        <button class="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg">🗑️</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p class="text-center text-gray-400 py-6">Walang order.</p>
+  {% endfor %}
+</div>
+
 <div id="newOrderModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-  <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[90vh] overflow-y-auto">
     <h2 class="font-bold text-lg mb-4">New Order</h2>
     <form method="POST" action="{{ url_for('orders.create') }}" class="space-y-3">
       <select name="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        <option value="">-- Select customer --</option>
+        <option value="walkin">🚶 Walk-in (No Account) - hindi kasali sa promo</option>
+        <option value="">-- O pumili ng customer (may account) --</option>
         {% for c in customers %}<option value="{{ c.id }}">{{ c.name }} ({{ c.barangay }})</option>{% endfor %}
       </select>
       <select name="container_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">

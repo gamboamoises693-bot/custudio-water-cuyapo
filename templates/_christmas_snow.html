@@ -1,0 +1,45 @@
+<!-- Christmas snow animation for the login screens - owner's request: show
+     it during the Christmas season, then automatically go back to the
+     normal login UI on Jan 1, 2027 (no code change needed, no leftover
+     snow after the season). Purely decorative + non-blocking: sits behind
+     the login card (pointer-events: none) so it never blocks taps/clicks. -->
+<style>
+  .snow-container { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+  .snowflake {
+    position: absolute; top: -10%; color: #ffffff; text-shadow: 0 0 4px rgba(0,168,232,0.4);
+    user-select: none; animation-name: snow-fall; animation-timing-function: linear; animation-iteration-count: infinite;
+  }
+  @keyframes snow-fall {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg); }
+    50%  { transform: translateY(50vh) translateX(15px) rotate(180deg); }
+    100% { transform: translateY(110vh) translateX(-10px) rotate(360deg); }
+  }
+</style>
+<div id="custudioSnow" class="snow-container"></div>
+<script>
+(function () {
+  // Christmas season window: Dec 1 (any year) through Dec 31, 2026 -
+  // automatically stops showing snow starting Jan 1, 2027 and the login
+  // page just renders normally (this block simply won't inject anything).
+  var now = new Date();
+  var seasonStart = new Date(now.getFullYear(), 11, 1); // Dec 1 of current year
+  var hardCutoff = new Date(2027, 0, 1); // Jan 1, 2027 - snow retires for good after this
+  var isDecember = now.getMonth() === 11; // 11 = December
+  if (!(isDecember && now >= seasonStart && now < hardCutoff)) return;
+
+  var container = document.getElementById('custudioSnow');
+  var flakes = ['❄', '❅', '❆'];
+  var count = window.innerWidth < 480 ? 20 : 35; // fewer flakes on small phones
+  for (var i = 0; i < count; i++) {
+    var el = document.createElement('span');
+    el.className = 'snowflake';
+    el.textContent = flakes[Math.floor(Math.random() * flakes.length)];
+    el.style.left = Math.random() * 100 + 'vw';
+    el.style.fontSize = (10 + Math.random() * 16) + 'px';
+    el.style.opacity = (0.4 + Math.random() * 0.6).toFixed(2);
+    el.style.animationDuration = (6 + Math.random() * 8) + 's';
+    el.style.animationDelay = (Math.random() * 8) + 's';
+    container.appendChild(el);
+  }
+})();
+</script>

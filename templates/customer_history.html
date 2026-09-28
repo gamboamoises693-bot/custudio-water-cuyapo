@@ -86,43 +86,10 @@
         {% endfor %}
       </div>
 
-      {% if o.get('spin_claimed') %}
-        {% if o.get('spin_bonus_gallons') %}
-        <p class="text-xs text-aqua-700 font-semibold mt-2">🎡 Free Spin: +{{ o.spin_bonus_gallons }} gallon sa loyalty card</p>
-        {% else %}
-        <p class="text-xs text-gray-400 font-semibold mt-2">🎡 Free Spin: mas swerte sa susunod!</p>
-        {% endif %}
-      {% elif o.spin_eligible %}
-        <button onclick="claimSpin('{{ o.id }}', this)" class="mt-2 w-full bg-aqua-500 hover:bg-aqua-600 text-white text-xs font-bold py-2 rounded-lg">🎡 Claim Free Spin!</button>
-      {% endif %}
     </div>
     {% else %}
     <p class="text-center text-gray-400 text-sm py-10">Wala ka pang order.</p>
     {% endfor %}
   </div>
 </div>
-
-<script>
-async function claimSpin(orderId, btn) {
-  btn.disabled = true;
-  btn.textContent = 'Spinning...';
-  try {
-    const res = await fetch(`/api/customer/{{ customer.id }}/order/${orderId}/claim_spin`, { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      btn.outerHTML = data.bonus_gallons > 0
-        ? `<p class="text-xs text-aqua-700 font-semibold mt-2">🎡 Free Spin: +${data.bonus_gallons} gallon sa loyalty card!</p>`
-        : `<p class="text-xs text-gray-400 font-semibold mt-2">🎡 Free Spin: mas swerte sa susunod!</p>`;
-    } else {
-      alert(data.error || 'Hindi na-claim.');
-      btn.disabled = false;
-      btn.textContent = '🎡 Claim Free Spin!';
-    }
-  } catch (e) {
-    alert('May error, subukan ulit.');
-    btn.disabled = false;
-    btn.textContent = '🎡 Claim Free Spin!';
-  }
-}
-</script>
 {% endblock %}

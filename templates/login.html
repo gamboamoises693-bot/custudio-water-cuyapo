@@ -4,9 +4,9 @@
 <div class="min-h-screen flex items-center justify-center px-4">
   <div class="bg-white shadow-xl rounded-2xl p-8 w-full max-w-sm">
     <div class="flex flex-col items-center mb-6">
-      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-16 h-16 rounded-full object-cover mb-2 bg-aqua-100" onerror="this.onerror=null;this.style.display='none';">
+      <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-16 h-16 rounded-full object-cover mb-2 bg-aqua-100" onerror="this.onerror=null;this.style.display='none';">
       <h1 class="text-xl font-bold text-aqua-700 leading-tight">CUSTODIO WATER<br><span class="text-sm font-semibold">REFILLING STATION</span></h1>
-      <p class="text-sm text-gray-500">Cuyapo Branch - Refilling Station System</p>
+      <p class="text-sm text-gray-500">Purok 6 Malineng, Cuyapo N.E. - Refilling Station System</p>
     </div>
     <form method="POST" class="space-y-4">
       <div>
@@ -19,7 +19,8 @@
       </div>
       <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white font-semibold py-2 rounded-lg transition">Login</button>
     </form>
-    <p class="text-xs text-gray-400 text-center mt-4">Run <code>python seed.py</code> first para may demo account (see README.md).</p>
+    <p class="text-xs text-gray-300 text-center mt-4">Developed by Moises Orio Gamboa</p>
   </div>
 </div>
+{% include "_christmas_snow.html" %}
 {% endblock %}

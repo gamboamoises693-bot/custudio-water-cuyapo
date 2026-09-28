@@ -15,7 +15,14 @@
       </div>
       <span class="text-xs bg-aqua-100 text-aqua-700 px-2 py-1 rounded-full">on delivery</span>
     </div>
-    <button onclick="document.getElementById('markModal-{{ o.id }}').classList.remove('hidden')" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Mark as Delivered</button>
+    <div class="flex gap-2">
+      <button onclick="document.getElementById('markModal-{{ o.id }}').classList.remove('hidden')" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Mark as Delivered</button>
+      {% if current_user.is_super_admin %}
+      <form method="POST" action="{{ url_for('deliveries.delete', order_id=o.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete/cancel ang delivery na ito? Hindi na ito mababawi.');">
+        <button class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-3 py-2 text-sm">🗑️</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
 
   <div id="markModal-{{ o.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">

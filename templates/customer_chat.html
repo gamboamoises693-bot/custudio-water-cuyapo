@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Chat sa Amin{% endblock %}
+{% block guest_content %}
+<div class="min-h-screen bg-gray-50 flex flex-col">
+  <div class="bg-aqua-500 text-white p-4 flex items-center gap-3 shrink-0">
+    <a href="{{ url_for('customer_portal.dashboard_page', customer_id=customer.id) }}" class="text-white text-xl">←</a>
+    <p class="font-bold">💬 Chat sa Amin</p>
+  </div>
+
+  <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-2 max-w-md mx-auto w-full">
+    {% for m in messages %}
+    <div class="flex {{ 'justify-end' if m.sender_type == 'customer' else 'justify-start' }}">
+      <div class="max-w-[75%] px-3 py-2 rounded-2xl text-sm {{ 'bg-aqua-500 text-white' if m.sender_type == 'customer' else 'bg-white text-gray-800 shadow' }}">
+        {% if m.message_type == 'image' and m.image_url %}
+        <img src="{{ m.image_url }}" class="rounded-lg max-w-full mb-1">
+        {% endif %}
+        {% if m.message_text %}<p>{{ m.message_text }}</p>{% endif %}
+      </div>
+    </div>
+    {% else %}
+    <p class="text-center text-gray-400 text-sm py-10">Wala pang mensahe. Mag-umpisa ng usapan tungkol sa order mo!</p>
+    {% endfor %}
+  </div>
+
+  <form id="chatForm" class="bg-white border-t border-gray-200 p-3 flex gap-2 max-w-md mx-auto w-full shrink-0">
+    <input id="chatInput" name="message_text" autocomplete="off" placeholder="Mag-type ng mensahe..." class="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aqua-400">
+    <button type="submit" class="bg-aqua-500 hover:bg-aqua-600 text-white rounded-full w-10 h-10 flex items-center justify-center shrink-0">➤</button>
+  </form>
+</div>
+
+<script>
+const CUSTOMER_ID = "{{ customer.id }}";
+const messagesEl = document.getElementById('chatMessages');
+const form = document.getElementById('chatForm');
+const input = document.getElementById('chatInput');
+
+function scrollToBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+scrollToBottom();
+
+function renderMessages(messages) {
+  messagesEl.innerHTML = '';
+  if (messages.length === 0) {
+    messagesEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-10">Wala pang mensahe. Mag-umpisa ng usapan tungkol sa order mo!</p>';
+    return;
+  }
+  messages.forEach(m => {
+    const isCustomer = m.sender_type === 'customer';
+    const wrap = document.createElement('div');
+    wrap.className = 'flex ' + (isCustomer ? 'justify-end' : 'justify-start');
+    const bubble = document.createElement('div');
+    bubble.className = 'max-w-[75%] px-3 py-2 rounded-2xl text-sm ' + (isCustomer ? 'bg-aqua-500 text-white' : 'bg-white text-gray-800 shadow');
+    if (m.message_type === 'image' && m.image_url) {
+      const img = document.createElement('img');
+      img.src = m.image_url;
+      img.className = 'rounded-lg max-w-full mb-1';
+      bubble.appendChild(img);
+    }
+    if (m.message_text) {
+      const p = document.createElement('p');
+      p.textContent = m.message_text;
+      bubble.appendChild(p);
+    }
+    wrap.appendChild(bubble);
+    messagesEl.appendChild(wrap);
+  });
+  scrollToBottom();
+}
+
+async function poll() {
+  try {
+    const res = await fetch(`/api/customer/${CUSTOMER_ID}/chat/poll`);
+    const data = await res.json();
+    if (data.ok) renderMessages(data.messages);
+  } catch (e) { /* ignore transient network errors */ }
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  try {
+    const res = await fetch(`/api/customer/${CUSTOMER_ID}/chat/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'message_text=' + encodeURIComponent(text),
+    });
+    const data = await res.json();
+    if (!data.ok) alert(data.error || 'Hindi na-send ang mensahe.');
+  } catch (e) {
+    alert('May error, subukan ulit.');
+  }
+  poll();
+});
+
+setInterval(poll, 4000);
+</script>
+{% endblock %}

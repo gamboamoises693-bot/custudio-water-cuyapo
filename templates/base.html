@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Custodio Water{% endblock %} - Cuyapo Branch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>{% block title %}Custodio Water{% endblock %} - Purok 6 Malineng, Cuyapo N.E.</title>
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+<meta name="theme-color" content="#00a8e8">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Custodio Water">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -34,11 +39,11 @@
   <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex md:flex-col">
     <div class="p-5 border-b border-gray-100">
       <div class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-10 h-10 rounded-full object-cover shrink-0 bg-aqua-100" onerror="this.onerror=null;this.style.display='none';">
+        <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-10 h-10 rounded-full object-cover shrink-0 bg-aqua-100" onerror="this.onerror=null;this.style.display='none';">
         <div>
           <p class="font-bold text-aqua-700 leading-tight">CUSTODIO WATER</p>
           <p class="text-[10px] font-semibold text-aqua-600 leading-tight tracking-wide">REFILLING STATION</p>
-          <p class="text-xs text-gray-500">Cuyapo Branch</p>
+          <p class="text-xs text-gray-500">Purok 6 Malineng, Cuyapo N.E.</p>
         </div>
       </div>
     </div>
@@ -65,6 +70,7 @@
       <p class="font-medium text-gray-800">{{ current_user.name }}</p>
       <p class="text-xs text-gray-500 capitalize">{{ current_user.role }}</p>
       <a href="{{ url_for('auth.logout') }}" class="text-xs text-aqua-600 hover:underline">Logout</a>
+      <p class="text-[10px] text-gray-300 mt-3">Developed by Moises Orio Gamboa</p>
     </div>
   </aside>
 
@@ -73,7 +79,7 @@
     <div class="md:hidden bg-aqua-500 text-white p-4 flex items-center justify-between relative z-40">
       <button type="button" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')" class="text-2xl leading-none px-1 -ml-1" aria-label="Menu">☰</button>
       <span class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-8 h-8 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
+        <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-8 h-8 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
         <span class="font-bold text-sm leading-tight">CUSTODIO WATER<br><span class="text-[10px] font-semibold tracking-wide">REFILLING STATION - Cuyapo</span></span>
       </span>
       <a href="{{ url_for('auth.logout') }}" class="text-xs underline shrink-0">Logout</a>
@@ -100,6 +106,7 @@
         <div class="border-t border-gray-100 mt-2 pt-2">
           <p class="px-3 text-xs text-gray-500">{{ current_user.name }} · <span class="capitalize">{{ current_user.role }}</span></p>
           <a href="{{ url_for('auth.logout') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700">🚪 Logout</a>
+          <p class="px-3 text-[10px] text-gray-300 mt-1">Developed by Moises Orio Gamboa</p>
         </div>
       </nav>
     </div>
@@ -143,5 +150,15 @@
   {% block guest_content %}{% endblock %}
 {% endif %}
 
+<script>
+  // PWA: register the service worker site-wide (installable "Add to Home
+  // Screen" like the Omega Ice app - see static/manifest.json for the
+  // Custodio Water icon). Silently does nothing if unsupported.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("{{ url_for('static', filename='js/sw.js') }}").catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>

@@ -4,7 +4,7 @@
 <div class="min-h-screen bg-gray-50 pb-20">
   <div class="bg-aqua-500 text-white p-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="Custodio Water" class="w-9 h-9 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
+      <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-9 h-9 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
       <div>
         <p class="font-bold leading-tight">CUSTODIO WATER</p>
         <p class="text-[10px] font-semibold opacity-90 tracking-wide leading-tight">REFILLING STATION</p>
@@ -30,6 +30,14 @@
     <div class="grid grid-cols-2 gap-3">
       <a href="{{ url_for('customer_portal.order_page', customer_id=customer.id) }}" class="bg-aqua-500 hover:bg-aqua-600 text-white rounded-2xl p-4 text-center font-semibold text-sm shadow">💧 Mag-order</a>
       <a href="{{ url_for('customer_portal.history_page', customer_id=customer.id) }}" class="bg-white hover:bg-gray-50 text-gray-800 rounded-2xl p-4 text-center font-semibold text-sm shadow border border-gray-100">📋 Order History</a>
+      <a href="{{ url_for('customer_portal.chat_page', customer_id=customer.id) }}" class="col-span-2 bg-white hover:bg-gray-50 text-gray-800 rounded-2xl p-4 text-center font-semibold text-sm shadow border border-gray-100">💬 Chat sa Amin (tungkol sa order mo)</a>
+    </div>
+
+    <!-- Cross-promo: OMEGA PURIFIED ICE (same owner's other business) -->
+    <div class="bg-gradient-to-r from-sky-600 to-aqua-500 rounded-2xl shadow p-4 text-white">
+      <p class="font-bold text-sm">🧊 OMEGA PURIFIED ICE</p>
+      <p class="text-xs opacity-95 mt-1">Malamig, Malinis, Mabilis Matunaw? HINDI dito! Order na ng matigas at pure na yelo - sagot namin ang init ng tag-init mo! ❄️</p>
+      <p class="text-[10px] opacity-80 mt-2">Tanungin na lang sa amin sa chat kung paano mag-order ng Omega Ice. 😉</p>
     </div>
 
     <!-- Account info -->
