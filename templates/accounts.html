@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Accounts{% endblock %}
+{% block content %}
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-800">Accounts</h1>
+    <p class="text-xs text-gray-500">Owner/Staff login accounts (hindi ito customers - tingnan sa Customers page ang mga yun).</p>
+  </div>
+  <button onclick="document.getElementById('newAccountModal').classList.remove('hidden')" class="bg-aqua-500 hover:bg-aqua-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">+ Add Account</button>
+</div>
+
+<div class="bg-white rounded-2xl shadow divide-y divide-gray-100">
+  {% for u in users %}
+  <div class="flex items-center gap-3 p-4">
+    <div class="w-11 h-11 rounded-full bg-aqua-100 text-aqua-700 flex items-center justify-center font-bold uppercase shrink-0">{{ u.name[0] if u.name else "?" }}</div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2">
+        <p class="font-semibold text-gray-800">{{ u.name }}</p>
+        {% if u.role == 'owner' %}
+        <span class="bg-purple-100 text-purple-700 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">Owner</span>
+        {% else %}
+        <span class="bg-gray-100 text-gray-600 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">Staff</span>
+        {% endif %}
+        {% if u.id == current_user.id %}
+        <span class="text-[10px] text-aqua-600 font-semibold">(ikaw)</span>
+        {% endif %}
+      </div>
+      <p class="text-xs text-gray-500 truncate">{{ u.email }}</p>
+    </div>
+    <button onclick="document.getElementById('pwModal-{{ u.id }}').classList.remove('hidden')" title="Reset password" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">🔑</button>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div id="pwModal-{{ u.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+      <h2 class="font-bold text-lg mb-1">Reset Password</h2>
+      <p class="text-xs text-gray-500 mb-4">Para kay <b>{{ u.name }}</b> ({{ u.email }}). Ipaalam mo agad sa kanya ang bagong password na ito.</p>
+      <form method="POST" action="{{ url_for('accounts.reset_password', user_id=u.id) }}" class="space-y-3">
+        <input name="new_password" required minlength="4" placeholder="Bagong password (min. 4 chars)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="document.getElementById('pwModal-{{ u.id }}').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+          <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p class="p-6 text-center text-gray-400 text-sm">Walang accounts.</p>
+  {% endfor %}
+</div>
+
+<!-- New Account Modal -->
+<div id="newAccountModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+    <h2 class="font-bold text-lg mb-4">Add New Account</h2>
+    <form method="POST" action="{{ url_for('accounts.create') }}" class="space-y-3">
+      <input name="name" required placeholder="Buong pangalan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="email" type="email" required placeholder="Email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="password" required minlength="4" placeholder="Password (min. 4 chars)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <select name="role" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <option value="staff">Staff</option>
+        <option value="owner">Owner (super-admin - full access)</option>
+      </select>
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('newAccountModal').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+        <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
