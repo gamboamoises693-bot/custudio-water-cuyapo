@@ -56,8 +56,8 @@
       <a href="{{ url_for('deliveries.rider_app') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'deliveries' }}">🚚 Deliveries</a>
       <a href="{{ url_for('inventory.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'inventory' }}">🛢️ Inventory</a>
       <a href="{{ url_for('sales.reports') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'sales.reports' }}">📈 Reports</a>
+      {% if current_user.is_super_admin %}
       <a href="{{ url_for('customers.activity_log') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'customers.activity_log' }}">🔐 Customer Portal Activity</a>
-      {% if current_user.role == 'owner' %}
       <a href="{{ url_for('accounts.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'accounts' }}">👤 Accounts</a>
       {% endif %}
     </nav>
@@ -93,8 +93,8 @@
         <a href="{{ url_for('deliveries.rider_app') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'deliveries' }}">🚚 Deliveries</a>
         <a href="{{ url_for('inventory.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'inventory' }}">🛢️ Inventory</a>
         <a href="{{ url_for('sales.reports') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'sales.reports' }}">📈 Reports</a>
+        {% if current_user.is_super_admin %}
         <a href="{{ url_for('customers.activity_log') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'customers.activity_log' }}">🔐 Customer Portal Activity</a>
-        {% if current_user.role == 'owner' %}
         <a href="{{ url_for('accounts.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'accounts' }}">👤 Accounts</a>
         {% endif %}
         <div class="border-t border-gray-100 mt-2 pt-2">
