@@ -208,7 +208,7 @@ def mark_delivered(order_id, delivered_qty, payment_type, amount_collected,
     # (container types differ in size now) times what was ACTUALLY
     # delivered, not the originally ordered qty (they can differ).
     gallons_per_unit = float(order.get("gallons_total", 0)) / float(order.get("containers_qty") or 1)
-    loyalty.add_gallons(order["customer_id"], gallons_per_unit * int(delivered_qty))
+    loyalty.add_gallons(order["customer_id"], gallons_per_unit * int(delivered_qty), order_id=order_id)
 
     thread_id = order.get("chat_thread_id")
     if thread_id:

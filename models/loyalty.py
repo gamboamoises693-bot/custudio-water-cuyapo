@@ -37,6 +37,7 @@ from models.customers import get_customer, update_customer
 
 ORDER_SPINS = "order_spins"
 LOYALTY_SETTINGS_DOC = "loyalty_settings"
+LOYALTY_LOG = "loyalty_log"
 
 GALLONS_PER_REWARD = 100        # 100 gallons bought...
 FREE_GALLONS_PER_REWARD = 5     # ...earns 5 free gallons on the next order
@@ -103,7 +104,7 @@ def get_loyalty_card(customer_id):
     }
 
 
-def add_gallons(customer_id, gallons):
+def add_gallons(customer_id, gallons, order_id=None):
     """Call this once an order is actually marked delivered/paid - NEVER on
     mere order placement (matches how the physical card works: staff only
     stamps it once the containers really go out). Adds `gallons`; every
@@ -131,6 +132,13 @@ def add_gallons(customer_id, gallons):
         "loyalty_free_gallons": new_free,
         "loyalty_updated_at": server_timestamp(),
     })
+
+    # MODULE 9 (cont'd): Per-Customer Loyalty History Log - append-only
+    # audit trail so owner/staff and the customer themselves can see
+    # exactly when/why their loyalty gallons moved (see customer_history.html).
+    note = f"+{rewards_earned * FREE_GALLONS_PER_REWARD} free gallons na-unlock!" if rewards_earned > 0 else ""
+    log_loyalty_event(customer_id, "earned", gallons, note=note, order_id=order_id)
+
     return {
         "gallons": remaining_gallons,
         "gallons_needed": GALLONS_PER_REWARD,
@@ -139,7 +147,7 @@ def add_gallons(customer_id, gallons):
     }
 
 
-def apply_free_gallons(customer_id, order_gallons, order_amount):
+def apply_free_gallons(customer_id, order_gallons, order_amount, order_id=None):
     """Called when a NEW order is placed - auto-applies as many free
     gallons as the customer currently has, capped at how many gallons are
     actually in THIS order (never lets an order go negative, never applies
@@ -164,7 +172,77 @@ def apply_free_gallons(customer_id, order_gallons, order_amount):
     discount_amount = min(discount_amount, order_amount)  # never a negative bill
 
     update_customer(customer_id, {"loyalty_free_gallons": credit - free_gallons_applied})
+    log_loyalty_event(customer_id, "redeemed", free_gallons_applied,
+                       note=f"₱{discount_amount:.2f} discount na-apply", order_id=order_id)
     return free_gallons_applied, discount_amount, round(order_amount - discount_amount, 2)
+
+
+# ---------------------------------------------------------------------------
+# Promo monitoring (owner requested 3 things: a dashboard widget for
+# customers close to a reward, a redemption report for the Reports page,
+# and a per-customer history log for the Customer Portal)
+# ---------------------------------------------------------------------------
+
+def list_customers_near_reward(threshold=80):
+    """Customers whose current loyalty_gallons is >= `threshold` (out of
+    GALLONS_PER_REWARD) - i.e. close to unlocking their next 5 free
+    gallons. Sorted highest-gallons-first so the owner sees who's closest."""
+    from models.customers import list_customers
+
+    customers = list_customers()
+    near = [c for c in customers if float(c.get("loyalty_gallons", 0) or 0) >= threshold]
+    near.sort(key=lambda c: float(c.get("loyalty_gallons", 0) or 0), reverse=True)
+    return near
+
+
+def get_redemption_summary(period_orders):
+    """`period_orders`: a list of order dicts already filtered to the
+    desired date range by the caller (see routes/sales.py's reports(),
+    which filters by order_date the same way it already filters
+    deliveries). Returns totals for how much loyalty promo was redeemed
+    in that period."""
+    redemptions = [o for o in period_orders if float(o.get("free_gallons_applied", 0) or 0) > 0]
+    return {
+        "redemption_count": len(redemptions),
+        "total_free_gallons": sum(float(o.get("free_gallons_applied", 0) or 0) for o in redemptions),
+        "total_discount_amount": sum(float(o.get("loyalty_discount_amount", 0) or 0) for o in redemptions),
+    }
+
+
+def log_loyalty_event(customer_id, event_type, gallons, note="", order_id=None):
+    """Append-only audit trail. `event_type`: 'earned' (from add_gallons,
+    i.e. an order got delivered), 'redeemed' (from apply_free_gallons,
+    i.e. free gallons discounted a new order). Never raises - a logging
+    failure should never block the loyalty gallons themselves from being
+    awarded/applied."""
+    try:
+        ref = db.collection(LOYALTY_LOG).document()
+        ref.set({
+            "id": ref.id,
+            "customer_id": customer_id,
+            "event_type": event_type,
+            "gallons": round(float(gallons or 0), 2),
+            "note": note or "",
+            "order_id": order_id,
+            "timestamp": server_timestamp(),
+        })
+    except Exception:
+        pass
+
+
+def get_loyalty_log(customer_id, limit=50):
+    """Most-recent-first list of this customer's loyalty_log entries."""
+    docs = [
+        d.to_dict() for d in
+        db.collection(LOYALTY_LOG).where("customer_id", "==", customer_id).stream()
+    ]
+    docs.sort(key=lambda e: _parse_ts(e.get("timestamp")) or 0, reverse=True)
+    return docs[:limit]
+
+
+# Public alias - safe for other modules (e.g. routes/customer_portal.py) to
+# use directly instead of reaching into the "private" _parse_ts helper.
+parse_ts = _parse_ts
 
 
 # ---------------------------------------------------------------------------
@@ -235,5 +313,5 @@ def claim_spin(order_id, customer_id):
     })
     card = get_loyalty_card(customer_id)
     if bonus_gallons > 0:
-        card = add_gallons(customer_id, bonus_gallons)
+        card = add_gallons(customer_id, bonus_gallons, order_id=order_id)
     return True, {"bonus_gallons": bonus_gallons, "card": card}
