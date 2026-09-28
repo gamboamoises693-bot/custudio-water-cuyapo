@@ -1,5 +1,6 @@
 """MODULE 9: Customer Self-Service Portal.
 
+
 Lets a customer log into THEIR OWN account (phone + password, no owner/
 staff email account needed) and place their own orders, see their order
 history, and earn free containers on their punch-card-style loyalty program
@@ -16,6 +17,7 @@ mixed - logging in as a customer clears any leftover owner/staff session,
 and vice versa (auth.py's login already does the latter).
 """
 
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, make_response
 
 from firebase_config import db
@@ -148,7 +150,13 @@ def history_page(customer_id):
             delivery = d.to_dict()
         can_spin, _ = loyalty.compute_spin_eligibility(order, delivery)
         order["spin_eligible"] = can_spin
-    return render_template("customer_history.html", customer=customer, orders=orders)
+    loyalty_log = loyalty.get_loyalty_log(customer_id, limit=30)
+    for entry in loyalty_log:
+        ts = loyalty.parse_ts(entry.get("timestamp"))
+        entry["display_date"] = (
+            datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y") if ts else ""
+        )
+    return render_template("customer_history.html", customer=customer, orders=orders, loyalty_log=loyalty_log)
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +272,7 @@ def api_place_order(customer_id):
     # computed at THIS order's own per-gallon rate, so it's fair whatever
     # container type they ordered.
     free_gallons, discount, billable = loyalty.apply_free_gallons(
-        customer_id, order["gallons_total"], order["amount_due"])
+        customer_id, order["gallons_total"], order["amount_due"], order_id=order["id"])
     if free_gallons > 0:
         db.collection("orders").document(order["id"]).update({
             "amount_due": billable,

@@ -14,6 +14,7 @@ from firebase_config import db, server_timestamp
 from models import orders as orders_model
 from models import customers as customers_model
 from models import inventory as inventory_model
+from models import loyalty as loyalty_model
 
 sales_bp = Blueprint("sales", __name__)
 
@@ -63,6 +64,12 @@ def dashboard():
     pending_orders = orders_model.list_orders(status="pending")
     on_delivery_orders = orders_model.list_orders(status="on_delivery")
 
+    # MODULE 9 (promo monitoring #1): Loyalty Dashboard Widget - customers
+    # who are 80+ gallons into their 100-gallon card, i.e. close to
+    # unlocking their next 5 free gallons. Lets the owner proactively
+    # remind/upsell them instead of only finding out when it's redeemed.
+    near_reward_customers = loyalty_model.list_customers_near_reward(threshold=80)
+
     return render_template(
         "dashboard.html",
         totals=totals,
@@ -72,6 +79,8 @@ def dashboard():
         low_stock_items=low_stock_items,
         pending_orders=pending_orders,
         on_delivery_orders=on_delivery_orders,
+        near_reward_customers=near_reward_customers,
+        loyalty_reward_threshold=loyalty_model.GALLONS_PER_REWARD,
         today=today,
     )
 
@@ -113,6 +122,21 @@ def reports():
     inactive_customers = customers_model.list_inactive_customers(days=14)
     best_customers = customers_model.top_customers(limit=10)
 
+    # MODULE 9 (promo monitoring #2): Promo Redemption Report - how much of
+    # the loyalty program was actually redeemed this period. Uses order_date
+    # (not delivered_at) since redemption happens the moment an order is
+    # PLACED (see routes/customer_portal.py api_place_order() ->
+    # loyalty.apply_free_gallons()), same period-filter pattern as deliveries.
+    def order_in_range(o):
+        ts = orders_model.parse_ts(o.get("order_date"))
+        if ts is None:
+            return False
+        d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        return start_date <= d_date <= today
+
+    period_orders = [o for o in orders_model.list_orders() if order_in_range(o)]
+    redemption_summary = loyalty_model.get_redemption_summary(period_orders)
+
     expenses = [d.to_dict() for d in db.collection(EXPENSES).stream()]
     today_expenses = [
         e for e in expenses
@@ -134,6 +158,7 @@ def reports():
         net_income_today=net_income_today,
         total_expenses_today=total_expenses_today,
         today_totals=today_totals,
+        redemption_summary=redemption_summary,
     )
 
 
