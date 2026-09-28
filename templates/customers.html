@@ -28,14 +28,35 @@
           {% if c.unread_count_owner %}<span class="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ c.unread_count_owner }}</span>{% endif %}
         </div>
         <p class="text-xs text-gray-500 truncate">{{ c.last_message or "Wala pang message" }}</p>
-        <p class="text-xs text-gray-400">{{ c.barangay }} · {{ c.phone }} · {{ c.type }}</p>
+        <p class="text-xs text-gray-400">
+          {{ type_labels.get(c.customer_type, c.customer_type) }}
+          {% if c.business_name %} · {{ c.business_name }}{% endif %}
+          · {{ c.phone }}{% if c.barangay %} · {{ c.barangay }}{% endif %}
+        </p>
       </div>
       <div class="text-right text-xs shrink-0">
         <p class="text-gray-500">Orders: {{ c.total_orders }}</p>
         {% if c.utang_amount and c.utang_amount > 0 %}<p class="text-red-500 font-semibold">Utang: ₱{{ "%.2f"|format(c.utang_amount) }}</p>{% endif %}
       </div>
     </a>
+    <button onclick="document.getElementById('qrModal-{{ c.id }}').classList.remove('hidden')" title="QR auto-login code" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">▦</button>
     <button onclick="document.getElementById('pwModal-{{ c.id }}').classList.remove('hidden')" title="Set Customer Portal password" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">🔑</button>
+  </div>
+
+  <!-- QR Auto-Login Modal -->
+  <div id="qrModal-{{ c.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
+      <h2 class="font-bold text-lg mb-1">QR Auto-Login</h2>
+      <p class="text-xs text-gray-500 mb-4">I-print o i-send kay <b>{{ c.name }}</b>. Pag na-scan/na-tap nya, diretso na syang ma-login sa Customer Portal nya - walang password kailangan i-type.</p>
+      <img src="{{ url_for('customers.qr_image', customer_id=c.id) }}" alt="QR code" class="mx-auto w-48 h-48 border border-gray-200 rounded-lg mb-4">
+      <div class="flex gap-2">
+        <a href="{{ url_for('customers.qr_image', customer_id=c.id) }}" download="qr-{{ c.name }}.png" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Download</a>
+        <form method="POST" action="{{ url_for('customers.qr_regenerate', customer_id=c.id) }}" onsubmit="return confirm('Sigurado ka? Hindi na gagana ang lumang QR na ito pagka-generate ng bago.');" class="flex-1">
+          <button type="submit" class="w-full border border-red-300 text-red-600 rounded-lg py-2 text-sm">🔄 Bagong QR</button>
+        </form>
+      </div>
+      <button type="button" onclick="document.getElementById('qrModal-{{ c.id }}').classList.add('hidden')" class="w-full mt-2 text-xs text-gray-400">Isara</button>
+    </div>
   </div>
 
   <!-- Set Portal Password Modal -->
@@ -58,21 +79,52 @@
 </div>
 
 <!-- New Customer Modal -->
-<div id="newCustomerModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-  <div class="bg-white rounded-2xl p-6 w-full max-w-md">
-    <h2 class="font-bold text-lg mb-4">Add New Customer</h2>
+<div id="newCustomerModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-md my-8">
+    <h2 class="font-bold text-lg mb-1">Add New Customer</h2>
+    <p class="text-xs text-gray-500 mb-4">Auto-ge-generate ang QR auto-login code pagka-save.</p>
     <form method="POST" action="{{ url_for('customers.create') }}" class="space-y-3">
-      <input name="name" required placeholder="Full name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-      <select name="barangay" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        {% for b in barangays %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
-      </select>
-      <input name="phone" required placeholder="Phone number (09xx...)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-      <select name="type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        <option value="residential">Residential</option>
-        <option value="store">Store</option>
-        <option value="office">Office</option>
-        <option value="bulk">Bulk</option>
-      </select>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Customer Type</label>
+        <select name="customer_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+          {% for t in customer_types %}<option value="{{ t }}">{{ type_labels[t] }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Complete Name</label>
+        <input name="name" required placeholder="e.g. Juan Dela Cruz" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Business Type <span class="font-normal">(optional - reseller lang)</span></label>
+        <input name="business_type" placeholder="e.g. Sari-sari Store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Business Name <span class="font-normal">(optional - reseller lang)</span></label>
+        <input name="business_name" placeholder="e.g. Sari-sari ni Aling Puring" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Phone No.</label>
+        <input name="phone" required placeholder="09xx-xxx-xxxx" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Address</label>
+        <input name="address" required placeholder="Bahay/Blk/Street, Barangay" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Barangay <span class="font-normal">(para sa Reports/filter)</span></label>
+        <select name="barangay" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+          <option value="">- Pumili -</option>
+          {% for b in barangays %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">Password <span class="font-normal">(Customer Portal login - phone No. ang username)</span></label>
+        <input name="password" type="text" minlength="4" placeholder="Min. 4 characters (pwedeng iwan blangko)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500">QR Code</label>
+        <p class="text-xs text-gray-400 italic mt-1">Auto-generate pagka-save - makikita sa customer list (▦ icon).</p>
+      </div>
       <div class="flex gap-2 pt-2">
         <button type="button" onclick="document.getElementById('newCustomerModal').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
         <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
