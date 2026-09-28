@@ -2,7 +2,7 @@
 marking (payment collection + photo proof) lives in routes/deliveries.py)."""
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from auth import login_required, role_required
+from auth import login_required, role_required, super_admin_required
 from models import orders as orders_model
 from models import customers as customers_model
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
@@ -47,7 +47,11 @@ def create():
         flash("Invalid na container type.", "danger")
         return redirect(url_for("orders.list_view"))
 
-    orders_model.create_order(customer_id, qty, delivery_date, container_type=container_type)
+    try:
+        orders_model.create_order(customer_id, qty, delivery_date, container_type=container_type)
+    except ValueError:
+        flash("Customer not found.", "danger")
+        return redirect(url_for("orders.list_view"))
     flash("Nagawa ang bagong order.", "success")
     return redirect(url_for("orders.list_view"))
 
@@ -67,4 +71,15 @@ def accept(order_id):
 def start_delivery(order_id):
     orders_model.start_delivery(order_id)
     flash("Padala na sa delivery! Makikita na ito sa Deliveries page.", "success")
+    return redirect(url_for("orders.list_view"))
+
+
+@orders_bp.route("/<order_id>/delete", methods=["POST"])
+@login_required
+@super_admin_required
+def delete(order_id):
+    """Hard delete - locked to gamboamoises693@gmail.com only (see auth.py's
+    super_admin_required). Removes the order + any linked delivery record."""
+    orders_model.delete_order(order_id)
+    flash("Na-delete ang order.", "success")
     return redirect(url_for("orders.list_view"))

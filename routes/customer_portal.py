@@ -23,6 +23,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from firebase_config import db
 from models import customer_auth
 from models import loyalty
+from models import chats as chats_model
 from models.customers import get_customer, get_customer_by_qr_token
 from models.orders import get_order, list_orders, create_order
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
@@ -144,12 +145,6 @@ def history_page(customer_id):
         flash("Customer not found.", "danger")
         return redirect(url_for("customer_portal.login_page"))
     orders = [o for o in list_orders() if o.get("customer_id") == customer_id]
-    for order in orders:
-        delivery = None
-        for d in db.collection("deliveries").where("order_id", "==", order["id"]).limit(1).stream():
-            delivery = d.to_dict()
-        can_spin, _ = loyalty.compute_spin_eligibility(order, delivery)
-        order["spin_eligible"] = can_spin
     loyalty_log = loyalty.get_loyalty_log(customer_id, limit=30)
     for entry in loyalty_log:
         ts = loyalty.parse_ts(entry.get("timestamp"))
@@ -157,6 +152,80 @@ def history_page(customer_id):
             datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y") if ts else ""
         )
     return render_template("customer_history.html", customer=customer, orders=orders, loyalty_log=loyalty_log)
+
+
+@customer_portal_bp.route("/customer/<customer_id>/chat")
+def chat_page(customer_id):
+    """MODULE 9 (cont'd): lets a customer chat directly with the owner
+    about their order - reuses the EXACT SAME chat_threads/chat_messages
+    backend as the staff-side Chats page (models/chats.py), so a message
+    sent here shows up immediately for staff at /chats/<thread_id>, and
+    vice versa. Every customer already has a chat_thread_id from the
+    moment their account was created (see models/customers.py
+    create_customer())."""
+    if not session.get("customer_id") and not _is_owner_or_staff():
+        return redirect(url_for("customer_portal.login_page"))
+    if session.get("customer_id") and session.get("customer_id") != customer_id and not _is_owner_or_staff():
+        return redirect(url_for("customer_portal.chat_page", customer_id=session["customer_id"]))
+    customer = get_customer(customer_id)
+    if not customer:
+        flash("Customer not found.", "danger")
+        return redirect(url_for("customer_portal.login_page"))
+
+    thread_id = customer.get("chat_thread_id")
+    messages = chats_model.list_messages(thread_id) if thread_id else []
+    if thread_id and session.get("customer_id") == customer_id:
+        chats_model.mark_thread_seen_by_customer(thread_id)
+    return render_template("customer_chat.html", customer=customer, messages=messages)
+
+
+@customer_portal_bp.route("/api/customer/<customer_id>/chat/send", methods=["POST"])
+def api_chat_send(customer_id):
+    if not _can_access(customer_id):
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+    customer = get_customer(customer_id)
+    thread_id = customer.get("chat_thread_id") if customer else None
+    if not thread_id:
+        return jsonify({"ok": False, "error": "Walang chat thread para sa account na ito."}), 400
+
+    text = request.form.get("message_text", "").strip()
+    if not text:
+        return jsonify({"ok": False, "error": "Wala kang na-type na mensahe."}), 400
+
+    chats_model.send_message(thread_id, "customer", customer_id, message_text=text, message_type="text")
+    push_notify.send_push_to_owner(
+        db, f"💬 {customer.get('name')}",
+        text[:120],
+        url=f"/chats/{thread_id}",
+    )
+    return jsonify({"ok": True})
+
+
+@customer_portal_bp.route("/api/customer/<customer_id>/chat/poll")
+def api_chat_poll(customer_id):
+    """Polling endpoint (same lightweight approach as chats.py's
+    poll_messages()) so the customer's chat page updates without a full
+    page reload, with no extra Firebase web SDK config needed."""
+    if not _can_access(customer_id):
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+    customer = get_customer(customer_id)
+    thread_id = customer.get("chat_thread_id") if customer else None
+    if not thread_id:
+        return jsonify({"ok": True, "messages": []})
+    messages = chats_model.list_messages(thread_id)
+    return jsonify({
+        "ok": True,
+        "messages": [
+            {
+                "id": m["id"],
+                "sender_type": m["sender_type"],
+                "message_text": m.get("message_text", ""),
+                "message_type": m.get("message_type", "text"),
+                "image_url": m.get("image_url"),
+            }
+            for m in messages
+        ],
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -294,16 +363,6 @@ def api_place_order(customer_id):
     else:
         flash(f"Na-place ang order mo: {qty}x {order['container_label']}. Salamat!", "success")
     return redirect(url_for("customer_portal.history_page", customer_id=customer_id))
-
-
-@customer_portal_bp.route("/api/customer/<customer_id>/order/<order_id>/claim_spin", methods=["POST"])
-def api_claim_spin(customer_id, order_id):
-    if not _can_access(customer_id):
-        return jsonify({"ok": False, "error": "Forbidden"}), 403
-    ok, result = loyalty.claim_spin(order_id, customer_id)
-    if not ok:
-        return jsonify({"ok": False, "error": result}), 400
-    return jsonify({"ok": True, **result})
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ full status lifecycle) for whichever staff member is processing deliveries.
 import os
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from auth import login_required, role_required, current_user
+from auth import login_required, role_required, current_user, super_admin_required
 from models import orders as orders_model
 from firebase_config import bucket, USING_MOCK_DB
 
@@ -86,4 +86,15 @@ def mark_delivered(order_id):
     delivered_by = (current_user() or {}).get("name")
     orders_model.mark_delivered(order_id, qty, payment_type, amount, photo_url, delivered_by=delivered_by)
     flash("Na-mark as delivered! Na-notify na ang customer sa chat.", "success")
+    return redirect(url_for("deliveries.rider_app"))
+
+
+@deliveries_bp.route("/<order_id>/delete", methods=["POST"])
+@login_required
+@super_admin_required
+def delete(order_id):
+    """Cancels/removes an order straight from the Deliveries queue - locked
+    to gamboamoises693@gmail.com only (see auth.py's super_admin_required)."""
+    orders_model.delete_order(order_id)
+    flash("Na-delete ang order/delivery.", "success")
     return redirect(url_for("deliveries.rider_app"))

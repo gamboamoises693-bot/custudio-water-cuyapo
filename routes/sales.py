@@ -8,7 +8,7 @@ collection for the daily-closing net-income calculation.
 """
 
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from auth import login_required, role_required
 from firebase_config import db, server_timestamp
 from models import orders as orders_model
@@ -160,6 +160,63 @@ def reports():
         today_totals=today_totals,
         redemption_summary=redemption_summary,
     )
+
+
+GRANULARITY_BUCKET_LIMIT = {"daily": 30, "weekly": 26, "monthly": 12, "quarterly": 8, "yearly": 6}
+GRANULARITY_LABELS = {"daily": "Daily", "weekly": "Weekly", "monthly": "Monthly", "quarterly": "Quarterly", "yearly": "Yearly"}
+
+
+def _bucket_key(dt, granularity):
+    if granularity == "daily":
+        return dt.strftime("%Y-%m-%d")
+    if granularity == "weekly":
+        iso = dt.isocalendar()  # (iso_year, iso_week, iso_weekday)
+        return f"{iso[0]}-W{iso[1]:02d}"
+    if granularity == "quarterly":
+        q = (dt.month - 1) // 3 + 1
+        return f"{dt.year}-Q{q}"
+    if granularity == "yearly":
+        return str(dt.year)
+    return dt.strftime("%Y-%m")  # monthly (default)
+
+
+def _compute_sales_trend(granularity):
+    """MODULE 5/7 (Sales Trend graph): buckets every delivery's
+    amount_collected by day/week/month/quarter/year, sorted chronologically,
+    capped to the most recent N buckets per granularity so the chart stays
+    readable. Bucket keys are zero-padded ISO-ish strings (YYYY-MM-DD,
+    YYYY-Www, YYYY-MM, YYYY-Qn, YYYY) so a plain string sort is already
+    chronological order."""
+    if granularity not in GRANULARITY_BUCKET_LIMIT:
+        granularity = "monthly"
+
+    buckets = {}
+    for d in orders_model.list_all_deliveries():
+        ts = orders_model.parse_ts(d.get("delivered_at"))
+        if ts is None:
+            continue
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        key = _bucket_key(dt, granularity)
+        buckets[key] = buckets.get(key, 0.0) + d.get("amount_collected", 0.0)
+
+    keys_sorted = sorted(buckets.keys())
+    limit = GRANULARITY_BUCKET_LIMIT[granularity]
+    keys_sorted = keys_sorted[-limit:]
+    return {
+        "granularity": granularity,
+        "labels": keys_sorted,
+        "values": [round(buckets[k], 2) for k in keys_sorted],
+    }
+
+
+@sales_bp.route("/reports/trend-data")
+@login_required
+def trend_data():
+    """JSON API for the Sales Trend chart (see templates/reports.html) -
+    called via fetch() when the person switches Daily/Weekly/Monthly/
+    Quarterly/Yearly tabs, so the page never needs a full reload."""
+    granularity = request.args.get("granularity", "monthly")
+    return jsonify(_compute_sales_trend(granularity))
 
 
 @sales_bp.route("/reports/expenses/new", methods=["POST"])
