@@ -13,7 +13,10 @@ staff account. Does NOT allow deleting the last remaining owner account
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from auth import login_required, super_admin_required, list_users, get_user, create_user, update_user_password, get_user_by_email
+from auth import (
+    login_required, super_admin_required, list_users, get_user, create_user,
+    update_user_password, get_user_by_email, update_user_name, delete_user,
+)
 
 accounts_bp = Blueprint("accounts", __name__, url_prefix="/accounts")
 
@@ -67,4 +70,45 @@ def reset_password(user_id):
 
     update_user_password(user_id, new_password)
     flash(f"Na-reset na ang password ni {user.get('name')} ({user.get('email')}). Ipaalam mo sa kanya ang bagong password.", "success")
+    return redirect(url_for("accounts.list_view"))
+
+
+@accounts_bp.route("/<user_id>/rename", methods=["POST"])
+@login_required
+@super_admin_required
+def rename(user_id):
+    new_name = request.form.get("new_name", "").strip()
+    if not new_name:
+        flash("Kailangan ng pangalan.", "danger")
+        return redirect(url_for("accounts.list_view"))
+
+    user = get_user(user_id)
+    if not user:
+        flash("Account not found.", "danger")
+        return redirect(url_for("accounts.list_view"))
+
+    update_user_name(user_id, new_name)
+    flash(f"Napalitan na ang pangalan ni {user.get('name')} maging {new_name}.", "success")
+    return redirect(url_for("accounts.list_view"))
+
+
+@accounts_bp.route("/<user_id>/delete", methods=["POST"])
+@login_required
+@super_admin_required
+def delete(user_id):
+    """Removes an inactive/old owner-staff login account. Guarded in
+    auth.delete_user() against deleting your own account or the last
+    remaining Owner account."""
+    user = get_user(user_id)
+    if not user:
+        flash("Account not found.", "danger")
+        return redirect(url_for("accounts.list_view"))
+
+    try:
+        delete_user(user_id, requesting_user_id=session.get("user_id"))
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("accounts.list_view"))
+
+    flash(f"Na-delete na ang account ni {user.get('name')} ({user.get('email')}).", "success")
     return redirect(url_for("accounts.list_view"))

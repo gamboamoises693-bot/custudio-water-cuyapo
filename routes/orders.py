@@ -2,7 +2,7 @@
 marking (payment collection + photo proof) lives in routes/deliveries.py)."""
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from auth import login_required, role_required, super_admin_required
+from auth import login_required, role_required, super_admin_required, current_user
 from models import orders as orders_model
 from models import customers as customers_model
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
@@ -34,6 +34,7 @@ def create():
     containers_qty = request.form.get("containers_qty", "0")
     delivery_date = request.form.get("delivery_date", "")
     container_type = request.form.get("container_type", DEFAULT_CONTAINER_TYPE)
+    payment_type = request.form.get("payment_type", "cash")
 
     try:
         qty = int(containers_qty)
@@ -48,10 +49,26 @@ def create():
         return redirect(url_for("orders.list_view"))
 
     try:
-        orders_model.create_order(customer_id, qty, delivery_date, container_type=container_type)
+        order = orders_model.create_order(customer_id, qty, delivery_date, container_type=container_type)
     except ValueError:
         flash("Customer not found.", "danger")
         return redirect(url_for("orders.list_view"))
+
+    if customer_id == orders_model.WALKIN_CUSTOMER_ID:
+        # Walk-in (no account) = bayad-agad sa counter, walang delivery na
+        # hinihintay. Deretso na sa Sales/Reports sa ilalim ng kasalukuyang
+        # naka-login na Owner/staff, hindi na dumadaan sa
+        # pending -> accepted -> on_delivery na workflow.
+        if payment_type not in orders_model.VALID_PAYMENT_TYPES or payment_type == "utang":
+            payment_type = "cash"  # walang account = walang malalagyan ng utang
+        staff_name = (current_user() or {}).get("name")
+        orders_model.mark_delivered(
+            order["id"], qty, payment_type, order["amount_due"],
+            delivered_by=staff_name,
+        )
+        flash(f"Naitala ang Walk-in sale (₱{order['amount_due']:.2f}) - diretso na sa Sales.", "success")
+        return redirect(url_for("orders.list_view"))
+
     flash("Nagawa ang bagong order.", "success")
     return redirect(url_for("orders.list_view"))
 
