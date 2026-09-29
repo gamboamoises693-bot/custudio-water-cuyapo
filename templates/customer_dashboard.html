@@ -111,10 +111,16 @@
   const vid = document.getElementById('promoVideo');
   const src = vid.querySelector('source');
   function show() { wrap.classList.remove('hidden'); }
-  function hide() { wrap.classList.add('hidden'); }
+  // Logs WHY it hid (e.g. 404 on promo.mp4) to the browser console so this
+  // is diagnosable from DevTools instead of just "nawawala" with no clue -
+  // customers never see this, only whoever opens DevTools while debugging.
+  function hide(reason) {
+    wrap.classList.add('hidden');
+    console.warn('[promo video] hidden - ' + reason + '. Check that static/videos/promo.mp4 exists on the live server.');
+  }
   vid.addEventListener('loadedmetadata', show);
-  vid.addEventListener('error', hide);
-  src.addEventListener('error', hide);
+  vid.addEventListener('error', function () { hide('video element error event'); });
+  src.addEventListener('error', function () { hide('source element error event (likely 404 on promo.mp4)'); });
   // Engagement tracking for the System Activity page (Isesmo-only) - how
   // many times the promo video actually gets played.
   vid.addEventListener('play', function () {
