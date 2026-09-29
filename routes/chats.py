@@ -51,7 +51,7 @@ def _upload_chat_image(file_storage):
 @login_required
 def list_view():
     threads = chats_model.list_threads()
-    return render_template("chat.html", threads=threads, active_thread=None, messages=[], quick_replies=chats_model.QUICK_REPLIES)
+    return render_template("chat.html", threads=threads, active_thread=None, messages=[], quick_replies=chats_model.QUICK_REPLIES, last_own_msg_id=None)
 
 
 @chats_bp.route("/<thread_id>")
@@ -64,6 +64,7 @@ def view_thread(thread_id):
         return redirect(url_for("chats.list_view"))
 
     messages = chats_model.list_messages(thread_id)
+    last_own_msg_id = chats_model.last_owner_message_id(messages)
     chats_model.mark_thread_seen_by_owner(thread_id)
     customer = customers_model.get_customer(thread["customer_id"])
 
@@ -74,6 +75,7 @@ def view_thread(thread_id):
         threads=threads,
         active_thread=thread,
         messages=messages,
+        last_own_msg_id=last_own_msg_id,
         customer=customer,
         quick_replies=chats_model.QUICK_REPLIES,
         container_types=list_container_types(),
@@ -160,8 +162,14 @@ def broadcast():
 @login_required
 def poll_messages(thread_id):
     """Lightweight JSON polling endpoint used by chat.js as a Firestore-onSnapshot-style
-    live update fallback (works even without exposing Firebase web SDK config)."""
+    live update fallback (works even without exposing Firebase web SDK config).
+    Also carries `time_label` (Manila-local, pre-formatted server-side so the
+    browser doesn't need its own timezone logic) and `seen`/`is_last_own` so
+    the owner's side can show a live 'Nakita na' (seen) indicator."""
+    from models.timeutil import format_time
+
     messages = chats_model.list_messages(thread_id)
+    last_own_id = chats_model.last_owner_message_id(messages)
     return jsonify({
         "messages": [
             {
@@ -170,6 +178,9 @@ def poll_messages(thread_id):
                 "message_text": m.get("message_text", ""),
                 "message_type": m.get("message_type", "text"),
                 "image_url": m.get("image_url"),
+                "time_label": format_time(m.get("timestamp")),
+                "seen": bool(m.get("seen")),
+                "is_last_own": m["id"] == last_own_id,
             }
             for m in messages
         ]

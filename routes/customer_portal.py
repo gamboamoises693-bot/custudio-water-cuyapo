@@ -28,6 +28,7 @@ from models.customers import get_customer, get_customer_by_qr_token
 from models.orders import get_order, list_orders, create_order, confirm_delivery
 from models.activity import record_action, bump_engagement
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
+from models.timeutil import format_dt
 import push_notify
 
 customer_portal_bp = Blueprint("customer_portal", __name__)
@@ -149,10 +150,8 @@ def history_page(customer_id):
     orders = [o for o in list_orders() if o.get("customer_id") == customer_id]
     loyalty_log = loyalty.get_loyalty_log(customer_id, limit=30)
     for entry in loyalty_log:
-        ts = loyalty.parse_ts(entry.get("timestamp"))
-        entry["display_date"] = (
-            datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y") if ts else ""
-        )
+        # Manila-local, not UTC - see models/timeutil.py's module docstring.
+        entry["display_date"] = format_dt(entry.get("timestamp"), "%b %d, %Y")
     return render_template("customer_history.html", customer=customer, orders=orders, loyalty_log=loyalty_log)
 
 
@@ -178,6 +177,10 @@ def chat_page(customer_id):
     messages = chats_model.list_messages(thread_id) if thread_id else []
     if thread_id and session.get("customer_id") == customer_id:
         chats_model.mark_thread_seen_by_customer(thread_id)
+        # Customer is actually looking at the thread now, so flip every
+        # owner/staff message to seen=True - lets the owner's Chats page
+        # show "Nakita na" (seen) on their last sent message.
+        chats_model.mark_messages_seen_by_customer(thread_id)
     return render_template("customer_chat.html", customer=customer, messages=messages)
 
 
@@ -207,13 +210,20 @@ def api_chat_send(customer_id):
 def api_chat_poll(customer_id):
     """Polling endpoint (same lightweight approach as chats.py's
     poll_messages()) so the customer's chat page updates without a full
-    page reload, with no extra Firebase web SDK config needed."""
+    page reload, with no extra Firebase web SDK config needed. Every poll
+    also marks the owner's messages as seen=True (the customer's screen is
+    open and actively refreshing, so this is the most accurate "did they
+    see it" signal we have) and carries a pre-formatted Manila-local
+    `time_label` per message."""
+    from models.timeutil import format_time
+
     if not _can_access(customer_id):
         return jsonify({"ok": False, "error": "Forbidden"}), 403
     customer = get_customer(customer_id)
     thread_id = customer.get("chat_thread_id") if customer else None
     if not thread_id:
         return jsonify({"ok": True, "messages": []})
+    chats_model.mark_messages_seen_by_customer(thread_id)
     messages = chats_model.list_messages(thread_id)
     return jsonify({
         "ok": True,
@@ -224,6 +234,7 @@ def api_chat_poll(customer_id):
                 "message_text": m.get("message_text", ""),
                 "message_type": m.get("message_type", "text"),
                 "image_url": m.get("image_url"),
+                "time_label": format_time(m.get("timestamp")),
             }
             for m in messages
         ],

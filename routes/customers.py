@@ -211,7 +211,7 @@ def activity_log():
 
     from models.activity import list_system_activity, get_engagement
     from models.orders import parse_ts
-    from datetime import datetime, timezone
+    from models.timeutil import format_dt
 
     login_logs = _sorted("customer_login_logs")
     activity_logs = _sorted("customer_activity_logs")
@@ -238,8 +238,8 @@ def activity_log():
         system_activity = [a for a in all_system_activity if a.get("actor_role") == role_filter][:150]
 
     for a in system_activity:
-        ts = parse_ts(a.get("created_at"))
-        a["display_date"] = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y %I:%M %p") if ts else ""
+        # Manila-local, not UTC - see models/timeutil.py's module docstring.
+        a["display_date"] = format_dt(a.get("created_at"))
     engagement = get_engagement()
     return render_template(
         "customer_activity.html",

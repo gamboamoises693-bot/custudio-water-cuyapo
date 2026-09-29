@@ -16,6 +16,7 @@ from models import customers as customers_model
 from models import inventory as inventory_model
 from models import loyalty as loyalty_model
 from models.activity import record_action
+from models.timeutil import today_manila, to_manila, now_manila, format_dt
 
 sales_bp = Blueprint("sales", __name__)
 
@@ -23,7 +24,10 @@ EXPENSES = "expenses"
 
 
 def _today_str():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    # Manila-local "today" (not UTC) - see models/timeutil.py's module
+    # docstring for why: using UTC here made Daily Closing roll over to a
+    # new day at 8:00 AM Manila time instead of midnight.
+    return today_manila().strftime("%Y-%m-%d")
 
 
 def _compute_totals(deliveries):
@@ -53,21 +57,19 @@ def _compute_monthly_financials():
     Sales come from delivered_at (money actually collected, same source
     of truth as the rest of this module); expenses come from the
     `expenses` collection's `date` field."""
-    now = datetime.now(timezone.utc)
+    now = now_manila()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     month_deliveries = [
         d for d in orders_model.list_all_deliveries()
-        if (ts := orders_model.parse_ts(d.get("delivered_at"))) is not None
-        and datetime.fromtimestamp(ts, tz=timezone.utc) >= month_start
+        if (dt := to_manila(d.get("delivered_at"))) is not None and dt >= month_start
     ]
     sales_month = sum(d.get("amount_collected", 0.0) for d in month_deliveries)
 
     all_expenses = [d.to_dict() for d in db.collection(EXPENSES).stream()]
     month_expenses = [
         e for e in all_expenses
-        if (ts := orders_model.parse_ts(e.get("date"))) is not None
-        and datetime.fromtimestamp(ts, tz=timezone.utc) >= month_start
+        if (dt := to_manila(e.get("date"))) is not None and dt >= month_start
     ]
     expenses_month = sum(e.get("amount", 0.0) for e in month_expenses)
 
@@ -89,16 +91,17 @@ def dashboard():
     today_deliveries = orders_model.list_deliveries_for_date(today)
     totals = _compute_totals(today_deliveries)
 
-    # Owner-only (see templates/dashboard.html gating): Isesmo (the
-    # developer/super-admin) is explicitly NOT treated as the business
-    # owner for this widget per owner's request, even though that account
-    # has super-admin access everywhere else - profit figures are private
-    # to the actual business owner. Only computed when it'll actually be
-    # shown, to avoid the extra Firestore reads for everyone else.
+    # Owner + super-admin only (see templates/dashboard.html gating).
+    # NOTE: earlier this explicitly excluded the super-admin (Isesmo/
+    # developer) account per owner's original request ("Si Isesmo hindi
+    # owner"), so staff never saw this and neither did the developer.
+    # Owner has since asked to ALSO see this on the super-admin account -
+    # only role="staff" is excluded now. Only computed when it'll actually
+    # be shown, to avoid the extra Firestore reads for staff.
     from auth import current_user
     _cu = current_user() or {}
     monthly_financials = None
-    if _cu.get("role") == "owner" and not _cu.get("is_super_admin"):
+    if _cu.get("role") == "owner" or _cu.get("is_super_admin"):
         monthly_financials = _compute_monthly_financials()
 
     walkin_vs_delivered = {
@@ -140,7 +143,7 @@ def dashboard():
 @login_required
 def reports():
     period = request.args.get("period", "daily")  # daily | weekly | monthly
-    today = datetime.now(timezone.utc).date()
+    today = today_manila()
 
     # Custom date-range filter ("filter ng date para ma-search yung araw na
     # gusto balikan") - takes over from the Daily/Weekly/Monthly quick
@@ -170,11 +173,10 @@ def reports():
     all_deliveries = orders_model.list_all_deliveries()
 
     def in_range(d):
-        ts = orders_model.parse_ts(d.get("delivered_at"))
-        if ts is None:
+        dt = to_manila(d.get("delivered_at"))
+        if dt is None:
             return False
-        d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
-        return start_date <= d_date <= range_end
+        return start_date <= dt.date() <= range_end
 
     period_deliveries = [d for d in all_deliveries if in_range(d)]
     totals = _compute_totals(period_deliveries)
@@ -197,11 +199,10 @@ def reports():
     # PLACED (see routes/customer_portal.py api_place_order() ->
     # loyalty.apply_free_gallons()), same period-filter pattern as deliveries.
     def order_in_range(o):
-        ts = orders_model.parse_ts(o.get("order_date"))
-        if ts is None:
+        dt = to_manila(o.get("order_date"))
+        if dt is None:
             return False
-        d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
-        return start_date <= d_date <= range_end
+        return start_date <= dt.date() <= range_end
 
     period_orders = [o for o in orders_model.list_orders() if order_in_range(o)]
     redemption_summary = loyalty_model.get_redemption_summary(period_orders)
@@ -210,8 +211,7 @@ def reports():
 
     today_expenses = [
         e for e in all_expenses
-        if orders_model.parse_ts(e.get("date")) and
-        datetime.fromtimestamp(orders_model.parse_ts(e.get("date")), tz=timezone.utc).date() == today
+        if (dt := to_manila(e.get("date"))) is not None and dt.date() == today
     ]
     total_expenses_today = sum(e.get("amount", 0.0) for e in today_expenses)
     today_deliveries = orders_model.list_deliveries_for_date(_today_str())
@@ -221,18 +221,18 @@ def reports():
     # Expense Breakdown (editable/deletable - owner/staff, e.g. Cindy) for
     # whichever period/date-range is currently selected above, newest first.
     def expense_in_range(e):
-        ts = orders_model.parse_ts(e.get("date"))
-        if ts is None:
+        dt = to_manila(e.get("date"))
+        if dt is None:
             return False
-        d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
-        return start_date <= d_date <= range_end
+        return start_date <= dt.date() <= range_end
 
     period_expenses = [e for e in all_expenses if expense_in_range(e)]
     period_expenses.sort(key=lambda e: orders_model.parse_ts(e.get("date")) or 0, reverse=True)
     total_period_expenses = sum(e.get("amount", 0.0) for e in period_expenses)
     for e in period_expenses:
-        ts = orders_model.parse_ts(e.get("date"))
-        e["display_date"] = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y") if ts else ""
+        # Manila-local date + TIME (not just date) - part of "lagyan ng
+        # date & time stamp ang ... recording ng expenses".
+        e["display_date"] = format_dt(e.get("date"), "%b %d, %Y %I:%M %p")
 
     return render_template(
         "reports.html",
@@ -282,10 +282,9 @@ def _compute_sales_trend(granularity):
 
     buckets = {}
     for d in orders_model.list_all_deliveries():
-        ts = orders_model.parse_ts(d.get("delivered_at"))
-        if ts is None:
+        dt = to_manila(d.get("delivered_at"))
+        if dt is None:
             continue
-        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
         key = _bucket_key(dt, granularity)
         buckets[key] = buckets.get(key, 0.0) + d.get("amount_collected", 0.0)
 
