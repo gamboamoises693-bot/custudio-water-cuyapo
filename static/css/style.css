@@ -25,3 +25,18 @@ img, table {
 body {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Fix: "putol" / cut-off content on small phones (e.g. 6-inch screens).
+   Flex/grid children default to min-width:auto, so a text input's
+   intrinsic content width can push a whole row wider than the viewport -
+   and since overflow-x is hidden above (to stop page-level horizontal
+   scrollbars), that overflow gets silently CLIPPED instead of scrolled.
+   Forcing min-width:0 lets flex/grid items shrink to fit their container
+   as intended, without affecting anything that already has an explicit
+   width (w-32, shrink-0, etc.) via Tailwind. */
+input, select, textarea, button {
+  min-width: 0;
+}
+.flex > * {
+  min-width: 0;
+}
