@@ -9,6 +9,35 @@
       <p class="text-sm text-gray-500">Customer Portal - Purok 6 Malineng, Cuyapo N.E.</p>
     </div>
 
+    <!-- Promo Video - self-hiding: shows automatically once static/videos/promo.mp4
+         is uploaded, stays hidden (no broken player) if it isn't there yet. -->
+    <div id="promoVideoWrap" class="hidden bg-black rounded-2xl shadow overflow-hidden mb-4">
+      <video id="promoVideo" class="w-full block" style="aspect-ratio: 16/9;" controls preload="metadata" playsinline>
+        <source src="{{ url_for('static', filename='videos/promo.mp4') }}" type="video/mp4">
+        Hindi supported ng browser mo ang pag-play ng video.
+      </video>
+    </div>
+
+    <!-- Cross-promo: OMEGA PURIFIED ICE (same owner's other business) -->
+    <a href="https://omega-ice.onrender.com/customer" target="_blank" rel="noopener" class="block bg-gradient-to-br from-fuchsia-600 to-sky-500 rounded-2xl shadow p-4 text-white mb-4">
+      <div class="flex items-center gap-3 mb-2">
+        <img src="{{ url_for('static', filename='images/omega_logo.png') }}" alt="Omega Purified Ice" class="w-14 h-14 object-contain shrink-0">
+        <div>
+          <p class="font-bold text-sm leading-tight">OMEGA PURIFIED ICE</p>
+          <p class="text-[10px] opacity-90">Para sa Taga-Cuyapo!</p>
+        </div>
+      </div>
+      <p class="text-xs opacity-95 leading-snug">May handaan ka ba?<br>Birthday, Kasal, Fiesta at iba pa?<br>Sa Omega ka na!</p>
+      <ul class="text-xs opacity-95 mt-2 space-y-0.5">
+        <li>✅ Malinis at Purified</li>
+        <li>✅ Mabilis mag-deliver sa Cuyapo</li>
+        <li>✅ Murang-mura</li>
+      </ul>
+      <p class="text-xs opacity-95 mt-2">May libreng <strong>POINTS</strong> pa kung Reseller ka! Bawat order mo may points, pwede mo gawing <strong>LIBRENG YELO</strong>.</p>
+      <p class="text-xs font-bold mt-2">Order na! Pwede ka rin maging RESELLER para kumita</p>
+      <div class="mt-3 bg-white text-sky-700 text-center font-bold text-xs rounded-lg py-2">🔗 I-click ang Link para sa account mo!</div>
+    </a>
+
     <div class="bg-white rounded-2xl shadow p-6">
       <form method="POST" action="{{ url_for('customer_portal.api_login') }}" class="space-y-3">
         <div>
@@ -55,4 +84,19 @@
 </div>
 <p class="text-xs text-gray-300 text-center mt-4">Developed by Moises Orio Gamboa</p>
 {% include "_christmas_snow.html" %}
+<script>
+// Promo Video: only reveal the player once static/videos/promo.mp4 actually
+// exists (avoids a broken/empty black box before the video file is uploaded
+// via GitHub). Same pattern as templates/customer_dashboard.html.
+(function () {
+  const wrap = document.getElementById('promoVideoWrap');
+  const vid = document.getElementById('promoVideo');
+  const src = vid.querySelector('source');
+  function show() { wrap.classList.remove('hidden'); }
+  function hide() { wrap.classList.add('hidden'); }
+  vid.addEventListener('loadedmetadata', show);
+  vid.addEventListener('error', hide);
+  src.addEventListener('error', hide);
+})();
+</script>
 {% endblock %}
