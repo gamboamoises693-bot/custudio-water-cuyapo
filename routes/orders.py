@@ -82,6 +82,25 @@ def accept(order_id):
     return redirect(url_for("orders.list_view"))
 
 
+@orders_bp.route("/<order_id>/decline", methods=["POST"])
+@login_required
+@role_required("owner", "staff")
+def decline(order_id):
+    reason = request.form.get("reason", "").strip()
+    if not reason:
+        flash("Kailangan ng remarks/dahilan bago i-decline ang order.", "danger")
+        return redirect(url_for("orders.list_view"))
+
+    try:
+        orders_model.decline_order(order_id, reason)
+    except ValueError:
+        flash("Order not found.", "danger")
+        return redirect(url_for("orders.list_view"))
+
+    flash("Na-decline ang order. Nakita na ng customer ang dahilan.", "success")
+    return redirect(url_for("orders.list_view"))
+
+
 @orders_bp.route("/<order_id>/start-delivery", methods=["POST"])
 @login_required
 @role_required("owner", "staff")

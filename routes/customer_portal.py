@@ -25,7 +25,7 @@ from models import customer_auth
 from models import loyalty
 from models import chats as chats_model
 from models.customers import get_customer, get_customer_by_qr_token
-from models.orders import get_order, list_orders, create_order
+from models.orders import get_order, list_orders, create_order, confirm_delivery
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
 import push_notify
 
@@ -295,6 +295,24 @@ def api_verify_otp():
     else:
         flash("Na-reset na ang password mo. Mag-login ka na gamit ang bago.", "success")
     return redirect(url_for("customer_portal.login_page"))
+
+
+@customer_portal_bp.route("/api/customer/<customer_id>/orders/<order_id>/confirm", methods=["POST"])
+def api_confirm_order(customer_id, order_id):
+    """Customer taps "Kumpirmahin ang Pagkatanggap" on their Order History
+    page for an order staff already marked delivered/paid/utang. THIS is
+    now what triggers their loyalty gallons - see models/orders.py's
+    confirm_delivery() and models/loyalty.py's module docstring."""
+    if session.get("customer_id") != customer_id:
+        return jsonify({"ok": False, "error": "Forbidden"}), 403
+
+    try:
+        confirm_delivery(order_id, customer_id)
+    except ValueError as e:
+        flash(str(e), "danger")
+    else:
+        flash("Salamat sa pag-confirm! Na-apply na ang gallons mo sa loyalty card.", "success")
+    return redirect(url_for("customer_portal.history_page", customer_id=customer_id))
 
 
 @customer_portal_bp.route("/api/customer/<customer_id>/change_password", methods=["POST"])
