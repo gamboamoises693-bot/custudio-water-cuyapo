@@ -215,7 +215,28 @@ def activity_log():
 
     login_logs = _sorted("customer_login_logs")
     activity_logs = _sorted("customer_activity_logs")
-    system_activity = list_system_activity(limit=150)
+
+    # Owner asked to see Owner + Staff activity specifically (separate from
+    # Isesmo's own developer actions) - role_filter drives a tab UI in the
+    # template. "all" (default) shows everything, unfiltered, like before.
+    role_filter = request.args.get("role", "all")
+    valid_roles = {"all", "developer", "owner", "staff", "customer"}
+    if role_filter not in valid_roles:
+        role_filter = "all"
+
+    # Fetch the full unfiltered set once (cheap - single Firestore read) so
+    # we can both compute per-role counts for the tab badges AND slice down
+    # to what's actually shown, without hitting Firestore twice.
+    all_system_activity = list_system_activity(limit=300)
+    role_counts = {"all": len(all_system_activity)}
+    for r in ("developer", "owner", "staff", "customer"):
+        role_counts[r] = sum(1 for a in all_system_activity if a.get("actor_role") == r)
+
+    if role_filter == "all":
+        system_activity = all_system_activity[:150]
+    else:
+        system_activity = [a for a in all_system_activity if a.get("actor_role") == role_filter][:150]
+
     for a in system_activity:
         ts = parse_ts(a.get("created_at"))
         a["display_date"] = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y %I:%M %p") if ts else ""
@@ -226,4 +247,6 @@ def activity_log():
         activity_logs=activity_logs,
         system_activity=system_activity,
         engagement=engagement,
+        role_filter=role_filter,
+        role_counts=role_counts,
     )
