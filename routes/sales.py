@@ -181,12 +181,23 @@ def reports():
     period_deliveries = [d for d in all_deliveries if in_range(d)]
     totals = _compute_totals(period_deliveries)
 
-    # Per-barangay breakdown ("alin barangay malakas sa Cuyapo")
+    # Per-barangay breakdown ("alin barangay malakas sa Cuyapo").
+    #
+    # DEFAULT_BARANGAY: any delivery whose customer record has no barangay
+    # on file (missing field, blank string) OR whose customer_id doesn't
+    # resolve at all (e.g. a walk-in sale, orders_model.WALKIN_CUSTOMER_ID)
+    # used to get bucketed as "Unknown". Per owner's explicit request,
+    # these now fold into "Malineng" instead - the branch's own home
+    # barangay ("Purok 6 Malineng, Cuyapo N.E."), since walk-in/no-barangay
+    # customers are, in practice, buying right there at the station.
+    DEFAULT_BARANGAY = "Malineng"
     barangay_totals = {}
     customers_by_id = {c["id"]: c for c in customers_model.list_customers()}
     for d in period_deliveries:
         cust = customers_by_id.get(d.get("customer_id"))
-        barangay = cust.get("barangay", "Unknown") if cust else "Unknown"
+        barangay = (cust.get("barangay") or "").strip() if cust else ""
+        if not barangay:
+            barangay = DEFAULT_BARANGAY
         barangay_totals[barangay] = barangay_totals.get(barangay, 0.0) + d.get("amount_collected", 0.0)
     barangay_ranking = sorted(barangay_totals.items(), key=lambda kv: kv[1], reverse=True)
 
