@@ -73,6 +73,21 @@
       {% if current_user.is_super_admin and push_enabled %}
       <button type="button" onclick="enableIsesmoPush()" id="pushBtn" class="block text-xs text-aqua-600 hover:underline mt-1">🔔 Enable Notifications</button>
       {% endif %}
+      {% if push_debug %}
+      <!-- Diagnostic-only, Isesmo-only (see app.py's inject_globals()):
+           shows EXACTLY which piece of the VAPID setup is missing instead
+           of a silent "no button" - so a Render env-var mistake is visible
+           right here instead of being guessed at over chat. -->
+      <div class="mt-2 text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 space-y-0.5">
+        <p class="font-semibold">⚠️ Push hindi pa configured:</p>
+        <p>pywebpush library: {{ "OK" if push_debug.pywebpush_installed else "MISSING (check requirements.txt)" }}</p>
+        <p>VAPID_PUBLIC_KEY: {{ "naka-set (" ~ push_debug.public_key_length ~ " chars)" if push_debug.public_key_set else "WALA / EMPTY" }}</p>
+        <p>VAPID_PRIVATE_KEY: {{ "naka-set (" ~ push_debug.private_key_length ~ " chars)" if push_debug.private_key_set else "WALA / EMPTY" }}</p>
+        {% if push_debug.private_key_set and not push_debug.private_key_looks_like_pem %}
+        <p class="font-semibold">⚠️ Mali ang format ng private key - dapat nagsisimula sa "-----BEGIN PRIVATE KEY-----"</p>
+        {% endif %}
+      </div>
+      {% endif %}
       <p class="text-[10px] text-gray-300 mt-3">Developed by Moises Orio Gamboa</p>
     </div>
   </aside>
@@ -109,6 +124,26 @@
         <div class="border-t border-gray-100 mt-2 pt-2">
           <p class="px-3 text-xs text-gray-500">{{ current_user.name }} · <span class="capitalize">{{ current_user.role }}</span></p>
           <a href="{{ url_for('auth.logout') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700">🚪 Logout</a>
+          {% if current_user.is_super_admin and push_enabled %}
+          <!-- Mobile copy of the desktop sidebar's push button (see above -
+               that one is inside a "hidden md:flex" <aside>, invisible on
+               phone screens, which was the ACTUAL reason it never showed
+               up for a mobile-only user). Uses the SAME id="pushBtn" +
+               enableIsesmoPush() function, so whichever one renders (mobile
+               or desktop) behaves identically - no separate JS needed. -->
+          <button type="button" onclick="enableIsesmoPush()" id="pushBtnMobile" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 w-full text-left">🔔 Enable Notifications</button>
+          {% endif %}
+          {% if push_debug %}
+          <div class="mx-3 mt-2 text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 space-y-0.5">
+            <p class="font-semibold">⚠️ Push hindi pa configured:</p>
+            <p>pywebpush library: {{ "OK" if push_debug.pywebpush_installed else "MISSING (check requirements.txt)" }}</p>
+            <p>VAPID_PUBLIC_KEY: {{ "naka-set (" ~ push_debug.public_key_length ~ " chars)" if push_debug.public_key_set else "WALA / EMPTY" }}</p>
+            <p>VAPID_PRIVATE_KEY: {{ "naka-set (" ~ push_debug.private_key_length ~ " chars)" if push_debug.private_key_set else "WALA / EMPTY" }}</p>
+            {% if push_debug.private_key_set and not push_debug.private_key_looks_like_pem %}
+            <p class="font-semibold">⚠️ Mali ang format ng private key - dapat nagsisimula sa "-----BEGIN PRIVATE KEY-----"</p>
+            {% endif %}
+          </div>
+          {% endif %}
           <p class="px-3 text-[10px] text-gray-300 mt-1">Developed by Moises Orio Gamboa</p>
         </div>
       </nav>
@@ -217,7 +252,12 @@
     return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
   }
   async function enableIsesmoPush() {
-    const btn = document.getElementById('pushBtn');
+    // Updates WHICHEVER button triggered this - the desktop sidebar one
+    // (id="pushBtn") and the mobile hamburger-menu one (id="pushBtnMobile")
+    // call this same function, so both get their text updated together
+    // (only one is ever visible at a time depending on screen size, but
+    // updating both is harmless and keeps them in sync).
+    const btns = [document.getElementById('pushBtn'), document.getElementById('pushBtnMobile')].filter(Boolean);
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         alert('Hindi supported ng browser mo ang push notifications.');
@@ -236,7 +276,7 @@
       await fetch("{{ url_for('staff_push_subscribe') }}", {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sub),
       });
-      if (btn) btn.textContent = '🔔 Naka-enable na ang Notifications';
+      btns.forEach(function (btn) { btn.textContent = '🔔 Naka-enable na ang Notifications'; });
     } catch (e) { console.log('push setup failed:', e); alert('Hindi na-enable ang notifications.'); }
   }
   {% endif %}
