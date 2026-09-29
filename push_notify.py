@@ -28,6 +28,26 @@ VAPID_CLAIMS_SUB = os.environ.get("VAPID_CLAIMS_SUB", "mailto:admin@example.com"
 PUSH_ENABLED = bool(PUSH_LIB_AVAILABLE and VAPID_PRIVATE_KEY and VAPID_PUBLIC_KEY)
 
 
+def debug_status():
+    """Non-secret diagnostic snapshot of why push is/isn't enabled - shown
+    to Isesmo (super-admin) ONLY in templates/base.html when PUSH_ENABLED
+    is False, so setup problems are visible directly in the app instead of
+    being guessed at over chat. Never includes the actual key values, only
+    whether they're set and how long they are (a wrong-looking length is
+    usually the tell for a copy-paste mistake, e.g. a truncated private
+    key)."""
+    private_key_looks_like_pem = VAPID_PRIVATE_KEY.strip().startswith("-----BEGIN") and "PRIVATE KEY" in VAPID_PRIVATE_KEY
+    return {
+        "pywebpush_installed": PUSH_LIB_AVAILABLE,
+        "public_key_set": bool(VAPID_PUBLIC_KEY),
+        "public_key_length": len(VAPID_PUBLIC_KEY),
+        "private_key_set": bool(VAPID_PRIVATE_KEY),
+        "private_key_length": len(VAPID_PRIVATE_KEY),
+        "private_key_looks_like_pem": private_key_looks_like_pem,
+        "enabled": PUSH_ENABLED,
+    }
+
+
 def subscription_id(endpoint):
     return hashlib.sha256(endpoint.encode()).hexdigest()[:32]
 

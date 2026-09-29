@@ -148,12 +148,21 @@ def create_app():
                 break
 
         import push_notify
+        _cu = current_user()
+        # Diagnostic-only, super-admin-only, and only computed when actually
+        # needed (avoids doing this work for every staff/customer request) -
+        # see push_notify.debug_status()'s docstring for why this exists.
+        push_debug = None
+        if _cu and _cu.get("is_super_admin") and not push_notify.PUSH_ENABLED:
+            push_debug = push_notify.debug_status()
+
         return {
-            "current_user": current_user(),
+            "current_user": _cu,
             "unread_chats": unread,
             "logo_filename": logo_filename,
             "push_enabled": push_notify.PUSH_ENABLED,
             "vapid_public_key": push_notify.VAPID_PUBLIC_KEY,
+            "push_debug": push_debug,
         }
 
     return app
