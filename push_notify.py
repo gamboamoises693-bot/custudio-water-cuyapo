@@ -63,6 +63,39 @@ def send_push_to_customer(db, customer_id, title, body, url="/customer"):
         print(f"[push_notify] send_push_to_customer error: {e}")
 
 
+def send_push_to_isesmo(db, title, body, url="/dashboard"):
+    """Notifies ONLY Isesmo's own push subscription(s) - per owner's
+    explicit request that Isesmo gets a notification for every action in
+    the app, regardless of whether any other owner/staff device is also
+    subscribed. Filters by EMAIL (staff_push_subscriptions' "email" field,
+    set at subscribe time - see routes/accounts.py's push_subscribe())
+    rather than role, since role="owner" no longer uniquely means "this is
+    Isesmo" (see auth.py's SUPER_ADMIN_EMAIL / super_admin_required).
+    Silently does nothing if push isn't configured (PUSH_ENABLED False) or
+    Isesmo hasn't enabled notifications on any device yet - the System
+    Activity Log (models/activity.py) is the reliable fallback either way."""
+    if not PUSH_ENABLED:
+        return
+    try:
+        import json
+        from auth import SUPER_ADMIN_EMAIL
+        for doc in db.collection("staff_push_subscriptions").where("email", "==", SUPER_ADMIN_EMAIL).stream():
+            sub = doc.to_dict()
+            try:
+                webpush(
+                    subscription_info={"endpoint": sub["endpoint"], "keys": sub["keys"]},
+                    data=json.dumps({"title": title, "body": body, "url": url}),
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": VAPID_CLAIMS_SUB},
+                )
+            except WebPushException as e:
+                print(f"[push_notify] webpush failed for {doc.id}: {e}")
+                if "410" in str(e) or "404" in str(e):
+                    doc.reference.delete()
+    except Exception as e:
+        print(f"[push_notify] send_push_to_isesmo error: {e}")
+
+
 def send_push_to_owner(db, title, body, url="/orders"):
     """Notifies every OWNER/STAFF push subscription (e.g. 'New order placed
     by a customer online') - separate collection key (role=owner) from the

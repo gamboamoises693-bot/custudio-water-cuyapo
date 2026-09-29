@@ -77,6 +77,39 @@ def create_app():
     app.register_blueprint(customer_portal_bp)
     app.register_blueprint(accounts_bp)
 
+    @app.route("/api/staff/push/subscribe", methods=["POST"])
+    @login_required
+    def staff_push_subscribe():
+        """Lets a logged-in owner/staff device register for push
+        notifications. Stored with the account's EMAIL (not just "role")
+        so push_notify.send_push_to_isesmo() can target Isesmo's device
+        specifically - per owner's request that Isesmo get notified of
+        every action in the app, whether or not any other staff device is
+        also subscribed. See templates/base.html's "🔔 Enable
+        Notifications" button (only shown to the super-admin account)."""
+        from flask import jsonify
+        import push_notify
+        from firebase_config import db as _db
+
+        if not push_notify.PUSH_ENABLED:
+            return jsonify({"ok": False, "error": "Push not configured on this server."}), 400
+
+        data = request.get_json(silent=True) or {}
+        endpoint = data.get("endpoint")
+        keys = data.get("keys") or {}
+        if not endpoint or not keys.get("p256dh") or not keys.get("auth"):
+            return jsonify({"ok": False, "error": "Invalid subscription"}), 400
+
+        sub_id = push_notify.subscription_id(endpoint)
+        _db.collection("staff_push_subscriptions").document(sub_id).set({
+            "endpoint": endpoint,
+            "keys": {"p256dh": keys.get("p256dh"), "auth": keys.get("auth")},
+            "user_id": session.get("user_id"),
+            "email": (session.get("user_email") or "").strip().lower(),
+            "role": session.get("user_role"),
+        })
+        return jsonify({"ok": True})
+
     @app.route("/")
     def index():
         if "user_id" in session:
@@ -114,7 +147,14 @@ def create_app():
                 logo_filename = f"images/logo.{ext}"
                 break
 
-        return {"current_user": current_user(), "unread_chats": unread, "logo_filename": logo_filename}
+        import push_notify
+        return {
+            "current_user": current_user(),
+            "unread_chats": unread,
+            "logo_filename": logo_filename,
+            "push_enabled": push_notify.PUSH_ENABLED,
+            "vapid_public_key": push_notify.VAPID_PUBLIC_KEY,
+        }
 
     return app
 

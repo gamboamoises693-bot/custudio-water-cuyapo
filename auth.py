@@ -179,6 +179,26 @@ def role_required(*allowed_roles):
     return decorator
 
 
+def owner_or_super_admin_required(view_func):
+    """Broader than super_admin_required - lets ANY role="owner" account
+    (e.g. the branch owner, Cindy) through, as well as the super-admin
+    (Isesmo). Use for actions the owner explicitly asked to extend beyond
+    Isesmo-only (e.g. deleting orders) - unlike Accounts/Customer Portal
+    Activity, which stay locked to super-admin only."""
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Mag-login muna po.", "warning")
+            return redirect(url_for("auth.login", next=request.path))
+        is_owner_role = session.get("user_role") == "owner"
+        is_super_admin = (session.get("user_email") or "").strip().lower() == SUPER_ADMIN_EMAIL
+        if not is_owner_role and not is_super_admin:
+            flash("Wala kang access sa page na ito.", "danger")
+            return redirect(url_for("sales.dashboard"))
+        return view_func(*args, **kwargs)
+    return wrapped
+
+
 def super_admin_required(view_func):
     """Locks a page to ONLY the SUPER_ADMIN_EMAIL account - stricter than
     role_required("owner"), which still lets in every role="owner" account
