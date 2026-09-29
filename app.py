@@ -77,6 +77,15 @@ def create_app():
     app.register_blueprint(customer_portal_bp)
     app.register_blueprint(accounts_bp)
 
+    # Manila-local date/time display everywhere (chat bubbles, orders,
+    # deliveries, expenses, reports) - see models/timeutil.py's module
+    # docstring for why this exists. Usage in a template: {{ some_ts |
+    # manila_dt }} / {{ some_ts | manila_date }} / {{ some_ts | manila_time }}
+    from models.timeutil import format_dt, format_date, format_time
+    app.jinja_env.filters["manila_dt"] = format_dt
+    app.jinja_env.filters["manila_date"] = format_date
+    app.jinja_env.filters["manila_time"] = format_time
+
     @app.route("/api/staff/push/subscribe", methods=["POST"])
     @login_required
     def staff_push_subscribe():
