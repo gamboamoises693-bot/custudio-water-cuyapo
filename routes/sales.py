@@ -44,12 +44,61 @@ def _compute_totals(deliveries):
     }
 
 
+def _compute_monthly_financials():
+    """Owner-only dashboard widget: current CALENDAR month (1st of this
+    month -> today), not the rolling 30-day window Reports uses for its
+    "monthly" period - a business owner checking "profit this month"
+    expects the actual calendar month-to-date, not a trailing 30 days.
+    Sales come from delivered_at (money actually collected, same source
+    of truth as the rest of this module); expenses come from the
+    `expenses` collection's `date` field."""
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    month_deliveries = [
+        d for d in orders_model.list_all_deliveries()
+        if (ts := orders_model.parse_ts(d.get("delivered_at"))) is not None
+        and datetime.fromtimestamp(ts, tz=timezone.utc) >= month_start
+    ]
+    sales_month = sum(d.get("amount_collected", 0.0) for d in month_deliveries)
+
+    all_expenses = [d.to_dict() for d in db.collection(EXPENSES).stream()]
+    month_expenses = [
+        e for e in all_expenses
+        if (ts := orders_model.parse_ts(e.get("date"))) is not None
+        and datetime.fromtimestamp(ts, tz=timezone.utc) >= month_start
+    ]
+    expenses_month = sum(e.get("amount", 0.0) for e in month_expenses)
+
+    profit_month = sales_month - expenses_month
+    profit_margin_month = (profit_month / sales_month * 100.0) if sales_month > 0 else 0.0
+
+    return {
+        "sales_month": sales_month,
+        "expenses_month": expenses_month,
+        "profit_month": profit_month,
+        "profit_margin_month": profit_margin_month,
+    }
+
+
 @sales_bp.route("/dashboard")
 @login_required
 def dashboard():
     today = _today_str()
     today_deliveries = orders_model.list_deliveries_for_date(today)
     totals = _compute_totals(today_deliveries)
+
+    # Owner-only (see templates/dashboard.html gating): Isesmo (the
+    # developer/super-admin) is explicitly NOT treated as the business
+    # owner for this widget per owner's request, even though that account
+    # has super-admin access everywhere else - profit figures are private
+    # to the actual business owner. Only computed when it'll actually be
+    # shown, to avoid the extra Firestore reads for everyone else.
+    from auth import current_user
+    _cu = current_user() or {}
+    monthly_financials = None
+    if _cu.get("role") == "owner" and not _cu.get("is_super_admin"):
+        monthly_financials = _compute_monthly_financials()
 
     walkin_vs_delivered = {
         "delivered": len(today_deliveries),
@@ -82,6 +131,7 @@ def dashboard():
         near_reward_customers=near_reward_customers,
         loyalty_reward_threshold=loyalty_model.GALLONS_PER_REWARD,
         today=today,
+        monthly_financials=monthly_financials,
     )
 
 
