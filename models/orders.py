@@ -29,6 +29,7 @@ official walk-in/store price list), NOT from a per-customer field anymore.
 from datetime import datetime, timezone
 from firebase_config import db, server_timestamp
 from models.pricing import get_container_type, DEFAULT_CONTAINER_TYPE
+from models.timeutil import to_manila
 
 ORDERS = "orders"
 DELIVERIES = "deliveries"
@@ -319,15 +320,18 @@ def get_last_order_date_map():
 
 
 def list_deliveries_for_date(date_str):
-    """date_str format: YYYY-MM-DD. Filters deliveries whose delivered_at falls on that date."""
+    """date_str format: YYYY-MM-DD (Manila-local, e.g. from
+    models.timeutil.today_manila()). Filters deliveries whose delivered_at
+    falls on that MANILA-local date - not UTC, otherwise "today" here would
+    disagree with what the Reports/Daily Closing screens call "today" for
+    up to 8 hours a day (see models/timeutil.py's module docstring)."""
     docs = [d.to_dict() for d in db.collection(DELIVERIES).stream()]
     out = []
     for d in docs:
-        ts = _parse_ts(d.get("delivered_at"))
-        if ts is None:
+        dt = to_manila(d.get("delivered_at"))
+        if dt is None:
             continue
-        day = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
-        if day == date_str:
+        if dt.strftime("%Y-%m-%d") == date_str:
             out.append(d)
     return out
 

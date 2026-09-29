@@ -10,9 +10,28 @@ chat_messages: id, thread_id, sender_type (owner/staff/rider/customer),
 
 from datetime import datetime, timezone
 from firebase_config import db, server_timestamp
+from models.timeutil import parse_ts
 
 THREADS = "chat_threads"
 MESSAGES = "chat_messages"
+
+_EPOCH_MIN = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def _sort_key(ts):
+    """Chronological sort key for a stored timestamp.
+
+    ROOT CAUSE of "hindi sunod-sunod yung ayos ng mga message": this used
+    to only handle `isinstance(ts, str)` (true for the local mock DB, which
+    stores an ISO string). On REAL Firebase, a timestamp read back from
+    Firestore is a `DatetimeWithNanoseconds` object, not a string - so the
+    old code silently fell through to `datetime.min` for EVERY message and
+    EVERY thread, which means nothing was actually being sorted by time at
+    all; messages just stayed in whatever arbitrary order Firestore's
+    `.stream()` happened to return them in. `parse_ts()` (models/timeutil.py)
+    handles both shapes (string and datetime/DatetimeWithNanoseconds), so
+    this now sorts correctly on both the local mock DB and real Firebase."""
+    return parse_ts(ts) or _EPOCH_MIN
 
 QUICK_REPLIES = [
     "On the way na po tubig nyo",
@@ -46,17 +65,7 @@ def get_thread(thread_id):
 def list_threads():
     """All threads sorted by most recent activity first (for the Messenger-style list)."""
     docs = [d.to_dict() for d in db.collection(THREADS).stream()]
-
-    def sort_key(t):
-        ts = t.get("last_message_time")
-        if isinstance(ts, str):
-            try:
-                return datetime.fromisoformat(ts)
-            except ValueError:
-                return datetime.min.replace(tzinfo=timezone.utc)
-        return datetime.min.replace(tzinfo=timezone.utc)
-
-    docs.sort(key=sort_key, reverse=True)
+    docs.sort(key=lambda t: _sort_key(t.get("last_message_time")), reverse=True)
     return docs
 
 
@@ -102,18 +111,20 @@ def send_message(thread_id, sender_type, sender_id, message_text=None, message_t
 def list_messages(thread_id, limit=200):
     query = db.collection(MESSAGES).where("thread_id", "==", thread_id)
     docs = [d.to_dict() for d in query.stream()]
-
-    def sort_key(m):
-        ts = m.get("timestamp")
-        if isinstance(ts, str):
-            try:
-                return datetime.fromisoformat(ts)
-            except ValueError:
-                return datetime.min.replace(tzinfo=timezone.utc)
-        return datetime.min.replace(tzinfo=timezone.utc)
-
-    docs.sort(key=sort_key)
+    docs.sort(key=lambda m: _sort_key(m.get("timestamp")))
     return docs[-limit:]
+
+
+def last_owner_message_id(messages):
+    """Returns the id of the most recent OWNER/STAFF message in a
+    chronologically-sorted `messages` list (see list_messages()), or None
+    if the customer hasn't been messaged yet. Used to show a single
+    'Naipadala/Nakita na' (sent/seen) indicator only on the latest outgoing
+    message - Messenger-style - instead of one on every single bubble."""
+    for m in reversed(messages):
+        if m.get("sender_type") in ("owner", "staff"):
+            return m.get("id")
+    return None
 
 
 def mark_thread_seen_by_owner(thread_id):
@@ -122,6 +133,20 @@ def mark_thread_seen_by_owner(thread_id):
 
 def mark_thread_seen_by_customer(thread_id):
     db.collection(THREADS).document(thread_id).update({"unread_count_customer": 0})
+
+
+def mark_messages_seen_by_customer(thread_id):
+    """Flips seen=True on every OWNER/STAFF message in this thread. Call
+    this whenever the customer actually opens or polls their chat page, so
+    the owner's side (chat.html) can show a 'Nakita na' (seen) indicator on
+    their last sent message - per owner's request to know kung nakita na ng
+    customer ang message nila. Only touches messages that aren't already
+    marked seen, to avoid a needless Firestore write on every poll."""
+    query = db.collection(MESSAGES).where("thread_id", "==", thread_id)
+    for doc in query.stream():
+        data = doc.to_dict()
+        if data.get("sender_type") in ("owner", "staff") and not data.get("seen"):
+            db.collection(MESSAGES).document(doc.id).update({"seen": True})
 
 
 def total_unread_for_owner():
