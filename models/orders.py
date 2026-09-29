@@ -337,15 +337,20 @@ def list_all_deliveries():
 
 
 def delete_order(order_id):
-    """Hard delete - super-admin only (see routes/orders.py's
-    @super_admin_required delete()). Removes the order AND any linked
-    delivery record so it doesn't leave orphaned rows in Reports/Sales
-    totals. Does NOT reverse loyalty gallons or utang that were already
-    applied when the order was delivered - undo those by hand first if the
-    order being deleted was already paid/utang."""
+    """Hard delete - Owner or super-admin only (see routes/orders.py's
+    @owner_or_super_admin_required delete()). Removes the order AND any
+    linked delivery record so it doesn't leave orphaned rows in
+    Reports/Sales totals. Does NOT reverse loyalty gallons or utang that
+    were already applied when the order was delivered - undo those by
+    hand first if the order being deleted was already paid/utang.
+
+    Deletes each matched delivery by its own id (db.collection(...).document(id))
+    rather than the snapshot's `.reference`, since the local mock Firestore
+    (firebase_config.py) doesn't implement that attribute on query results -
+    this way delete works identically against the mock and the real client."""
     db.collection(ORDERS).document(order_id).delete()
     for d in db.collection(DELIVERIES).where("order_id", "==", order_id).stream():
-        d.reference.delete()
+        db.collection(DELIVERIES).document(d.id).delete()
 
 
 # Public alias - safe for other modules (e.g. routes/sales.py) to use directly
