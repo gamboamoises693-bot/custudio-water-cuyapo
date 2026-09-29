@@ -15,6 +15,7 @@ from models import orders as orders_model
 from models import customers as customers_model
 from models import inventory as inventory_model
 from models import loyalty as loyalty_model
+from models.activity import record_action
 
 sales_bp = Blueprint("sales", __name__)
 
@@ -141,7 +142,25 @@ def reports():
     period = request.args.get("period", "daily")  # daily | weekly | monthly
     today = datetime.now(timezone.utc).date()
 
-    if period == "weekly":
+    # Custom date-range filter ("filter ng date para ma-search yung araw na
+    # gusto balikan") - takes over from the Daily/Weekly/Monthly quick
+    # buttons whenever a start_date is given. end_date defaults to today
+    # (a single start_date alone means "from that day up to now").
+    filter_start = request.args.get("start_date") or ""
+    filter_end = request.args.get("end_date") or ""
+    range_end = today
+    if filter_start:
+        try:
+            start_date = datetime.strptime(filter_start, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = today
+        if filter_end:
+            try:
+                range_end = datetime.strptime(filter_end, "%Y-%m-%d").date()
+            except ValueError:
+                range_end = today
+        period = "custom"
+    elif period == "weekly":
         start_date = today - timedelta(days=7)
     elif period == "monthly":
         start_date = today - timedelta(days=30)
@@ -155,7 +174,7 @@ def reports():
         if ts is None:
             return False
         d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
-        return start_date <= d_date <= today
+        return start_date <= d_date <= range_end
 
     period_deliveries = [d for d in all_deliveries if in_range(d)]
     totals = _compute_totals(period_deliveries)
@@ -182,14 +201,15 @@ def reports():
         if ts is None:
             return False
         d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
-        return start_date <= d_date <= today
+        return start_date <= d_date <= range_end
 
     period_orders = [o for o in orders_model.list_orders() if order_in_range(o)]
     redemption_summary = loyalty_model.get_redemption_summary(period_orders)
 
-    expenses = [d.to_dict() for d in db.collection(EXPENSES).stream()]
+    all_expenses = [d.to_dict() for d in db.collection(EXPENSES).stream()]
+
     today_expenses = [
-        e for e in expenses
+        e for e in all_expenses
         if orders_model.parse_ts(e.get("date")) and
         datetime.fromtimestamp(orders_model.parse_ts(e.get("date")), tz=timezone.utc).date() == today
     ]
@@ -197,6 +217,22 @@ def reports():
     today_deliveries = orders_model.list_deliveries_for_date(_today_str())
     today_totals = _compute_totals(today_deliveries)
     net_income_today = today_totals["total_sales"] - total_expenses_today
+
+    # Expense Breakdown (editable/deletable - owner/staff, e.g. Cindy) for
+    # whichever period/date-range is currently selected above, newest first.
+    def expense_in_range(e):
+        ts = orders_model.parse_ts(e.get("date"))
+        if ts is None:
+            return False
+        d_date = datetime.fromtimestamp(ts, tz=timezone.utc).date()
+        return start_date <= d_date <= range_end
+
+    period_expenses = [e for e in all_expenses if expense_in_range(e)]
+    period_expenses.sort(key=lambda e: orders_model.parse_ts(e.get("date")) or 0, reverse=True)
+    total_period_expenses = sum(e.get("amount", 0.0) for e in period_expenses)
+    for e in period_expenses:
+        ts = orders_model.parse_ts(e.get("date"))
+        e["display_date"] = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y") if ts else ""
 
     return render_template(
         "reports.html",
@@ -209,6 +245,10 @@ def reports():
         total_expenses_today=total_expenses_today,
         today_totals=today_totals,
         redemption_summary=redemption_summary,
+        period_expenses=period_expenses,
+        total_period_expenses=total_period_expenses,
+        filter_start=filter_start,
+        filter_end=filter_end,
     )
 
 
@@ -289,5 +329,53 @@ def add_expense():
         "amount": amount_val,
         "date": server_timestamp(),
     })
+    record_action("Expense Added", f"{label} - ₱{amount_val:.2f}")
     flash("Naidagdag ang expense.", "success")
+    return redirect(url_for("sales.reports"))
+
+
+@sales_bp.route("/reports/expenses/<expense_id>/edit", methods=["POST"])
+@login_required
+@role_required("owner", "staff")
+def edit_expense(expense_id):
+    """Lets Cindy (or Isesmo) fix a typo'd label/amount on a past expense -
+    part of the Expense Breakdown (see reports() above). Keeps the
+    expense's original date (only label/amount change)."""
+    label = request.form.get("label", "").strip()
+    amount = request.form.get("amount", "0")
+    try:
+        amount_val = float(amount)
+    except ValueError:
+        amount_val = 0.0
+
+    ref = db.collection(EXPENSES).document(expense_id)
+    existing = ref.get()
+    if not existing.exists:
+        flash("Wala nang ganitong expense.", "danger")
+        return redirect(url_for("sales.reports"))
+
+    if not label or amount_val <= 0:
+        flash("Kailangan ng label at valid na amount.", "danger")
+        return redirect(url_for("sales.reports"))
+
+    ref.update({"label": label, "amount": amount_val})
+    record_action("Expense Edited", f"{label} - ₱{amount_val:.2f}")
+    flash("Na-update ang expense.", "success")
+    return redirect(url_for("sales.reports"))
+
+
+@sales_bp.route("/reports/expenses/<expense_id>/delete", methods=["POST"])
+@login_required
+@role_required("owner", "staff")
+def delete_expense(expense_id):
+    ref = db.collection(EXPENSES).document(expense_id)
+    existing = ref.get()
+    if not existing.exists:
+        flash("Wala nang ganitong expense.", "danger")
+        return redirect(url_for("sales.reports"))
+
+    data = existing.to_dict()
+    ref.delete()
+    record_action("Expense Deleted", f"{data.get('label')} - ₱{data.get('amount', 0):.2f}")
+    flash("Na-delete ang expense.", "success")
     return redirect(url_for("sales.reports"))

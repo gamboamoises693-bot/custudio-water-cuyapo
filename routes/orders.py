@@ -2,9 +2,10 @@
 marking (payment collection + photo proof) lives in routes/deliveries.py)."""
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from auth import login_required, role_required, super_admin_required, current_user
+from auth import login_required, role_required, owner_or_super_admin_required, current_user
 from models import orders as orders_model
 from models import customers as customers_model
+from models.activity import record_action
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
 
 orders_bp = Blueprint("orders", __name__, url_prefix="/orders")
@@ -66,9 +67,11 @@ def create():
             order["id"], qty, payment_type, order["amount_due"],
             delivered_by=staff_name,
         )
+        record_action("Walk-in Sale", f"{qty}x {order['container_label']} - ₱{order['amount_due']:.2f} ({payment_type})")
         flash(f"Naitala ang Walk-in sale (₱{order['amount_due']:.2f}) - diretso na sa Sales.", "success")
         return redirect(url_for("orders.list_view"))
 
+    record_action("Bagong Order", f"{order.get('customer_name')} - {qty}x {order['container_label']}")
     flash("Nagawa ang bagong order.", "success")
     return redirect(url_for("orders.list_view"))
 
@@ -77,7 +80,8 @@ def create():
 @login_required
 @role_required("owner", "staff")
 def accept(order_id):
-    orders_model.accept_order(order_id)
+    order = orders_model.accept_order(order_id)
+    record_action("Order Accepted", f"{order.get('customer_name')} - {order.get('containers_qty')}x {order.get('container_label')}")
     flash("Na-accept na ang order.", "success")
     return redirect(url_for("orders.list_view"))
 
@@ -92,11 +96,12 @@ def decline(order_id):
         return redirect(url_for("orders.list_view"))
 
     try:
-        orders_model.decline_order(order_id, reason)
+        order = orders_model.decline_order(order_id, reason)
     except ValueError:
         flash("Order not found.", "danger")
         return redirect(url_for("orders.list_view"))
 
+    record_action("Order Declined", f"{order.get('customer_name')} - Dahilan: {reason}")
     flash("Na-decline ang order. Nakita na ng customer ang dahilan.", "success")
     return redirect(url_for("orders.list_view"))
 
@@ -112,10 +117,14 @@ def start_delivery(order_id):
 
 @orders_bp.route("/<order_id>/delete", methods=["POST"])
 @login_required
-@super_admin_required
+@owner_or_super_admin_required
 def delete(order_id):
-    """Hard delete - locked to gamboamoises693@gmail.com only (see auth.py's
-    super_admin_required). Removes the order + any linked delivery record."""
+    """Hard delete - Owner (e.g. Cindy) or super-admin (Isesmo) only (see
+    auth.py's owner_or_super_admin_required). Removes the order + any
+    linked delivery record."""
+    order = orders_model.get_order(order_id)
     orders_model.delete_order(order_id)
+    if order:
+        record_action("Order Deleted", f"{order.get('customer_name')} - {order.get('containers_qty')}x {order.get('container_label')}")
     flash("Na-delete ang order.", "success")
     return redirect(url_for("orders.list_view"))

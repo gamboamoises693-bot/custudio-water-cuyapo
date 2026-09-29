@@ -17,6 +17,7 @@ from auth import (
     login_required, super_admin_required, list_users, get_user, create_user,
     update_user_password, get_user_by_email, update_user_name, delete_user,
 )
+from models.activity import record_action
 
 accounts_bp = Blueprint("accounts", __name__, url_prefix="/accounts")
 
@@ -50,6 +51,7 @@ def create():
         return redirect(url_for("accounts.list_view"))
 
     create_user(email, password, name, role=role)
+    record_action("Account Created", f"{name} ({email}) - {role}")
     flash(f"Nagawa ang bagong {role} account para kay {name} ({email}).", "success")
     return redirect(url_for("accounts.list_view"))
 
@@ -69,6 +71,7 @@ def reset_password(user_id):
         return redirect(url_for("accounts.list_view"))
 
     update_user_password(user_id, new_password)
+    record_action("Password Reset", f"{user.get('name')} ({user.get('email')})")
     flash(f"Na-reset na ang password ni {user.get('name')} ({user.get('email')}). Ipaalam mo sa kanya ang bagong password.", "success")
     return redirect(url_for("accounts.list_view"))
 
@@ -88,6 +91,7 @@ def rename(user_id):
         return redirect(url_for("accounts.list_view"))
 
     update_user_name(user_id, new_name)
+    record_action("Account Renamed", f"{user.get('name')} -> {new_name} ({user.get('email')})")
     flash(f"Napalitan na ang pangalan ni {user.get('name')} maging {new_name}.", "success")
     return redirect(url_for("accounts.list_view"))
 
@@ -110,5 +114,6 @@ def delete(user_id):
         flash(str(e), "danger")
         return redirect(url_for("accounts.list_view"))
 
+    record_action("Account Deleted", f"{user.get('name')} ({user.get('email')})")
     flash(f"Na-delete na ang account ni {user.get('name')} ({user.get('email')}).", "success")
     return redirect(url_for("accounts.list_view"))

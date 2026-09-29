@@ -209,6 +209,21 @@ def activity_log():
         docs.sort(key=lambda x: parse_ts(x.get("created_at")) or 0, reverse=True)
         return docs[:limit]
 
+    from models.activity import list_system_activity, get_engagement
+    from models.orders import parse_ts
+    from datetime import datetime, timezone
+
     login_logs = _sorted("customer_login_logs")
     activity_logs = _sorted("customer_activity_logs")
-    return render_template("customer_activity.html", login_logs=login_logs, activity_logs=activity_logs)
+    system_activity = list_system_activity(limit=150)
+    for a in system_activity:
+        ts = parse_ts(a.get("created_at"))
+        a["display_date"] = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%b %d, %Y %I:%M %p") if ts else ""
+    engagement = get_engagement()
+    return render_template(
+        "customer_activity.html",
+        login_logs=login_logs,
+        activity_logs=activity_logs,
+        system_activity=system_activity,
+        engagement=engagement,
+    )

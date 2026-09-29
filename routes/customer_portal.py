@@ -26,6 +26,7 @@ from models import loyalty
 from models import chats as chats_model
 from models.customers import get_customer, get_customer_by_qr_token
 from models.orders import get_order, list_orders, create_order, confirm_delivery
+from models.activity import record_action, bump_engagement
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
 import push_notify
 
@@ -307,12 +308,36 @@ def api_confirm_order(customer_id, order_id):
         return jsonify({"ok": False, "error": "Forbidden"}), 403
 
     try:
-        confirm_delivery(order_id, customer_id)
+        order = confirm_delivery(order_id, customer_id)
     except ValueError as e:
         flash(str(e), "danger")
     else:
+        record_action(
+            "Order Confirmed ng Customer", f"{order.get('customer_name')} - {order.get('containers_qty')}x {order.get('container_label')}",
+            actor_name=order.get("customer_name"),
+        )
         flash("Salamat sa pag-confirm! Na-apply na ang gallons mo sa loyalty card.", "success")
     return redirect(url_for("customer_portal.history_page", customer_id=customer_id))
+
+
+@customer_portal_bp.route("/api/track/video-play", methods=["POST"])
+def api_track_video_play():
+    """Counts a play of the promo video shown on the Customer Login page
+    and Customer Dashboard - fired by the video's own 'play' event (see
+    those templates' inline scripts). No login needed since the video is
+    shown before login too. Public/best-effort - a small over-count from a
+    replay or seek is fine, this is a rough engagement number, not a
+    billing figure."""
+    bump_engagement("video_plays")
+    return jsonify({"ok": True})
+
+
+@customer_portal_bp.route("/api/track/omega-click", methods=["POST"])
+def api_track_omega_click():
+    """Counts a tap of the OMEGA PURIFIED ICE cross-promo banner link -
+    same public/best-effort engagement counter as video plays above."""
+    bump_engagement("omega_link_clicks")
+    return jsonify({"ok": True})
 
 
 @customer_portal_bp.route("/api/customer/<customer_id>/change_password", methods=["POST"])
@@ -373,6 +398,11 @@ def api_place_order(customer_id):
         db, "💧 Bagong Order!",
         f"{order.get('customer_name')} - {qty}x {order['container_label']}" + (f" ({delivery_date})" if delivery_date else ""),
         url="/orders",
+    )
+    record_action(
+        "Bagong Order (Customer Portal)",
+        f"{order.get('customer_name')} - {qty}x {order['container_label']}" + (f" ({delivery_date})" if delivery_date else ""),
+        actor_name=order.get("customer_name"),
     )
     if session.get("customer_id") == customer_id:
         customer_auth.log_activity(customer_id, order.get("customer_name"), "Nag-order",

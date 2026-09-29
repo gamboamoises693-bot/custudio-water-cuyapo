@@ -10,8 +10,9 @@ full status lifecycle) for whichever staff member is processing deliveries.
 import os
 import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from auth import login_required, role_required, current_user, super_admin_required
+from auth import login_required, role_required, current_user, owner_or_super_admin_required
 from models import orders as orders_model
+from models.activity import record_action
 from firebase_config import bucket, USING_MOCK_DB
 
 deliveries_bp = Blueprint("deliveries", __name__, url_prefix="/deliveries")
@@ -85,16 +86,21 @@ def mark_delivered(order_id):
 
     delivered_by = (current_user() or {}).get("name")
     orders_model.mark_delivered(order_id, qty, payment_type, amount, photo_url, delivered_by=delivered_by)
+    record_action("Order Delivered", f"{order.get('customer_name')} - {qty}x {order.get('container_label')} - ₱{amount:.2f} ({payment_type})")
     flash("Na-mark as delivered! Na-notify na ang customer sa chat.", "success")
     return redirect(url_for("deliveries.rider_app"))
 
 
 @deliveries_bp.route("/<order_id>/delete", methods=["POST"])
 @login_required
-@super_admin_required
+@owner_or_super_admin_required
 def delete(order_id):
-    """Cancels/removes an order straight from the Deliveries queue - locked
-    to gamboamoises693@gmail.com only (see auth.py's super_admin_required)."""
+    """Cancels/removes an order straight from the Deliveries queue - Owner
+    (e.g. Cindy) or super-admin (Isesmo) only (see auth.py's
+    owner_or_super_admin_required)."""
+    order = orders_model.get_order(order_id)
     orders_model.delete_order(order_id)
+    if order:
+        record_action("Delivery Deleted", f"{order.get('customer_name')} - {order.get('containers_qty')}x {order.get('container_label')}")
     flash("Na-delete ang order/delivery.", "success")
     return redirect(url_for("deliveries.rider_app"))
