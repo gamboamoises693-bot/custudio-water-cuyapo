@@ -129,6 +129,36 @@ function trackOmegaClick() {
   fetch('/api/track/omega-click', { method: 'POST' }).catch(function () {});
 }
 
+// Pre-warm Omega Ice's Render server the moment this page loads (NOT when
+// the banner is clicked). Omega Ice is on Render's free tier, which sleeps
+// the server after ~15 min of no traffic - the first request after that
+// takes ~30-60s to "wake up" (cold start). This fetch fires early in the
+// background so, by the time the customer actually taps the banner below,
+// the Omega server has already had a head start waking up.
+//
+// mode: 'no-cors' is required - Omega Ice's server doesn't send CORS
+// headers back to this origin, so a normal fetch would be blocked by the
+// browser and always land in .catch(). 'no-cors' just fires the HTTP
+// request (which IS enough to wake up the Render dyno) without needing to
+// read the response - we genuinely don't care what comes back, we only
+// care that the request reached the server.
+// keepalive: true lets the request survive even if the user navigates
+// away/closes the tab a split-second after this fires.
+(function prewarmOmegaIce() {
+  try {
+    // Preconnect hint: does DNS lookup + TLS handshake ahead of time so,
+    // once the Omega server IS awake, the actual navigation is faster too
+    // (doesn't help the cold-start delay itself, just the connection setup).
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = 'https://omega-ice.onrender.com';
+    document.head.appendChild(link);
+  } catch (e) { /* non-fatal, just skip the preconnect hint */ }
+  try {
+    fetch('https://omega-ice.onrender.com/', { mode: 'no-cors', keepalive: true }).catch(function () {});
+  } catch (e) { /* older browsers without fetch keepalive support - safe no-op */ }
+})();
+
 async function loadLoyaltyCard() {
   const card = document.getElementById('loyaltyCard');
   try {
