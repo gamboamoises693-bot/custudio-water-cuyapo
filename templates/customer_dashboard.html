@@ -2,16 +2,29 @@
 {% block title %}Customer Dashboard{% endblock %}
 {% block guest_content %}
 <div class="min-h-screen bg-gray-50 pb-20">
-  <div class="bg-aqua-500 text-white p-4 flex items-center justify-between">
-    <div class="flex items-center gap-2">
+  <div class="bg-aqua-500 text-white p-4 flex items-center justify-between relative z-40">
+    <div class="flex items-center gap-2 min-w-0">
+      <button type="button" onclick="document.getElementById('customerMenu').classList.toggle('hidden')" class="text-2xl leading-none px-1 -ml-1 shrink-0" aria-label="Menu">☰</button>
       <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-9 h-9 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
-      <div>
+      <div class="min-w-0">
         <p class="font-bold leading-tight">CUSTODIO WATER</p>
         <p class="text-[10px] font-semibold opacity-90 tracking-wide leading-tight">REFILLING STATION</p>
-        <p class="text-xs opacity-90 mt-0.5">Kumusta, {{ customer.name }}!</p>
+        <p class="text-xs opacity-90 mt-0.5 truncate">Kumusta, {{ customer.name }}!</p>
       </div>
     </div>
-    <a href="{{ url_for('customer_portal.logout_page') }}" class="text-xs underline">Logout</a>
+    <a href="{{ url_for('customer_portal.logout_page') }}" class="text-xs underline shrink-0">Logout</a>
+  </div>
+
+  <!-- Hamburger dropdown: Mag-order / Order History / Chat Owner / Palitan
+       Password all live here now, off the main screen, per owner's
+       request - tap outside or an item to close it. -->
+  <div id="customerMenu" class="hidden bg-white border-b border-gray-200 shadow-lg absolute top-[64px] left-0 right-0 z-30">
+    <nav class="max-w-md mx-auto p-3 space-y-1 text-sm">
+      <a href="{{ url_for('customer_portal.order_page', customer_id=customer.id) }}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50">💧 Mag-order</a>
+      <a href="{{ url_for('customer_portal.history_page', customer_id=customer.id) }}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50">📋 Order History</a>
+      <a href="{{ url_for('customer_portal.chat_page', customer_id=customer.id) }}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50">💬 Chat Owner</a>
+      <button type="button" onclick="document.getElementById('customerMenu').classList.add('hidden'); document.getElementById('pwModal').classList.remove('hidden');" class="w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50">🔒 Palitan Password</button>
+    </nav>
   </div>
 
   <div class="max-w-md mx-auto p-4 space-y-4">
@@ -25,13 +38,6 @@
         </div>
       {% endif %}
     {% endwith %}
-
-    <!-- Quick actions -->
-    <div class="grid grid-cols-2 gap-3">
-      <a href="{{ url_for('customer_portal.order_page', customer_id=customer.id) }}" class="bg-aqua-500 hover:bg-aqua-600 text-white rounded-2xl p-4 text-center font-semibold text-sm shadow">💧 Mag-order</a>
-      <a href="{{ url_for('customer_portal.history_page', customer_id=customer.id) }}" class="bg-white hover:bg-gray-50 text-gray-800 rounded-2xl p-4 text-center font-semibold text-sm shadow border border-gray-100">📋 Order History</a>
-      <a href="{{ url_for('customer_portal.chat_page', customer_id=customer.id) }}" class="col-span-2 bg-white hover:bg-gray-50 text-gray-800 rounded-2xl p-4 text-center font-semibold text-sm shadow border border-gray-100">💬 Chat Owner</a>
-    </div>
 
     <!-- Promo Video - self-hiding: shows automatically once static/videos/promo.mp4
          is uploaded, stays hidden (no broken player) if it isn't there yet. -->
@@ -77,15 +83,21 @@
       <p class="text-gray-400 text-xs">Loading loyalty card...</p>
     </div>
 
-    <!-- Change password -->
-    <details class="bg-white rounded-2xl shadow p-4 text-sm">
-      <summary class="font-semibold text-gray-700 cursor-pointer">🔒 Palitan ang Password</summary>
-      <form method="POST" action="{{ url_for('customer_portal.api_change_password', customer_id=customer.id) }}" class="space-y-2 mt-3">
-        <input name="current_password" type="password" required placeholder="Kasalukuyang password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        <input name="new_password" type="password" required minlength="4" placeholder="Bagong password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-        <button type="submit" class="w-full bg-gray-800 text-white rounded-lg py-2 text-sm font-semibold">Update Password</button>
-      </form>
-    </details>
+  </div>
+</div>
+
+<!-- Change Password Modal (opened from the hamburger menu above) -->
+<div id="pwModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+    <h2 class="font-bold text-lg mb-4">🔒 Palitan ang Password</h2>
+    <form method="POST" action="{{ url_for('customer_portal.api_change_password', customer_id=customer.id) }}" class="space-y-3">
+      <input name="current_password" type="password" required placeholder="Kasalukuyang password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <input name="new_password" type="password" required minlength="4" placeholder="Bagong password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="document.getElementById('pwModal').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+        <button type="submit" class="flex-1 bg-gray-800 text-white rounded-lg py-2 text-sm font-semibold">Update Password</button>
+      </div>
+    </form>
   </div>
 </div>
 

@@ -20,6 +20,7 @@
   {% elif status == 'on_delivery' %}bg-aqua-100 text-aqua-700
   {% elif status == 'delivered' %}bg-blue-100 text-blue-700
   {% elif status == 'paid' %}bg-green-100 text-green-700
+  {% elif status == 'declined' %}bg-gray-200 text-gray-600
   {% else %}bg-red-100 text-red-700{% endif %}">{{ status.replace('_',' ') }}</span>
 {% endmacro %}
 
@@ -46,7 +47,12 @@
         <td class="px-4 py-3">{{ o.containers_qty }}</td>
         <td class="px-4 py-3">₱{{ "%.2f"|format(o.amount_due) }}</td>
         <td class="px-4 py-3">{{ o.delivery_date or "-" }}</td>
-        <td class="px-4 py-3">{{ status_badge(o.status) }}</td>
+        <td class="px-4 py-3">
+          {{ status_badge(o.status) }}
+          {% if o.status == 'declined' and o.decline_reason %}
+          <p class="text-xs text-red-500 mt-1 max-w-[200px]">{{ o.decline_reason }}</p>
+          {% endif %}
+        </td>
         <td class="px-4 py-3 text-xs text-gray-400">{{ o.id }}</td>
         <td class="px-4 py-3">
           <div class="flex flex-wrap gap-1">
@@ -54,6 +60,7 @@
             <form method="POST" action="{{ url_for('orders.accept', order_id=o.id) }}">
               <button class="text-xs bg-aqua-500 text-white px-2 py-1 rounded">Accept</button>
             </form>
+            <button type="button" onclick="document.getElementById('declineModal-{{ o.id }}').classList.remove('hidden')" class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">Decline</button>
             {% elif o.status == 'accepted' %}
             <form method="POST" action="{{ url_for('orders.start_delivery', order_id=o.id) }}">
               <button class="text-xs bg-aqua-500 text-white px-2 py-1 rounded">Start Delivery</button>
@@ -86,12 +93,16 @@
     </div>
     <p class="text-xs text-gray-500">{{ o.containers_qty }}x {{ o.container_label or "-" }} · ₱{{ "%.2f"|format(o.amount_due) }}</p>
     <p class="text-xs text-gray-400">📅 {{ o.delivery_date or "Walang petsa" }}</p>
+    {% if o.status == 'declined' and o.decline_reason %}
+    <p class="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-2 py-1 mt-1">❌ {{ o.decline_reason }}</p>
+    {% endif %}
     <p class="text-[10px] text-gray-300 break-all mt-1">ID: {{ o.id }}</p>
     <div class="flex flex-wrap gap-2 mt-3">
       {% if o.status == 'pending' %}
       <form method="POST" action="{{ url_for('orders.accept', order_id=o.id) }}" class="flex-1">
         <button class="w-full text-xs bg-aqua-500 text-white px-2 py-2 rounded-lg font-semibold">Accept</button>
       </form>
+      <button type="button" onclick="document.getElementById('declineModal-{{ o.id }}').classList.remove('hidden')" class="flex-1 text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-2 rounded-lg font-semibold">Decline</button>
       {% elif o.status == 'accepted' %}
       <form method="POST" action="{{ url_for('orders.start_delivery', order_id=o.id) }}" class="flex-1">
         <button class="w-full text-xs bg-aqua-500 text-white px-2 py-2 rounded-lg font-semibold">Start Delivery</button>
@@ -153,4 +164,25 @@
     </script>
   </div>
 </div>
+
+<!-- Decline Modals (one per pending order - shared between the desktop
+     table and mobile card views above, since only one modal per order id
+     can exist in the DOM) -->
+{% for o in orders %}
+{% if o.status == 'pending' %}
+<div id="declineModal-{{ o.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+    <h2 class="font-bold text-lg mb-1 text-red-600">Decline Order</h2>
+    <p class="text-xs text-gray-500 mb-4">Para kay <b>{{ o.customer_name }}</b> ({{ o.containers_qty }}x {{ o.container_label }}). Makikita ng customer ang dahilan na ilalagay mo sa Order History nila.</p>
+    <form method="POST" action="{{ url_for('orders.decline', order_id=o.id) }}" class="space-y-3">
+      <textarea name="reason" required rows="3" placeholder="Dahilan (hal. out of stock, hindi kaya i-deliver sa area/date na 'yan)..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+      <div class="flex gap-2 pt-1">
+        <button type="button" onclick="document.getElementById('declineModal-{{ o.id }}').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+        <button type="submit" class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg py-2 text-sm font-semibold">Decline</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endfor %}
 {% endblock %}

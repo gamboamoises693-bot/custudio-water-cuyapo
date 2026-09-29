@@ -57,6 +57,7 @@
       'delivered': 'bg-gray-100 text-gray-800',
       'paid': 'bg-green-100 text-green-800',
       'utang': 'bg-red-100 text-red-800',
+      'declined': 'bg-gray-200 text-gray-600',
     }.get(o.status, 'bg-gray-100 text-gray-800') %}
     {# Tracking step reached: 0=Order Placed, 1=Accepted, 2=On the way, 3=Delivered #}
     {% set step = {
@@ -71,6 +72,12 @@
       <p class="text-xs text-gray-400">{{ o.delivery_date or "Walang petsa" }}</p>
       <p class="text-sm text-gray-600 mt-1">₱{{ "%.2f"|format(o.amount_due) }}{% if o.get('free_gallons_applied') %} · 🎁 {{ o.free_gallons_applied }} gallon libre (loyalty card){% endif %}</p>
 
+      {% if o.status == 'declined' %}
+      <!-- Declined: no stepper, show the reason instead -->
+      <div class="bg-red-50 border border-red-100 rounded-lg px-3 py-2 mt-3 text-xs text-red-700">
+        ❌ Na-decline ang order na ito.{% if o.decline_reason %} Dahilan: {{ o.decline_reason }}{% endif %}
+      </div>
+      {% else %}
       <!-- Status tracking stepper -->
       <div class="flex items-center mt-3 mb-1">
         {% for label in ['Order Placed', 'Accepted', 'On the way', 'Delivered'] %}
@@ -85,6 +92,19 @@
         </div>
         {% endfor %}
       </div>
+
+      <!-- Customer confirm-receipt (only place loyalty gallons get
+           credited - see models/orders.py's confirm_delivery()) -->
+      {% if o.status in ('delivered', 'paid', 'utang') %}
+        {% if o.customer_confirmed %}
+        <p class="text-xs text-green-600 font-semibold mt-2">✅ Na-confirm mo na ang pagkatanggap - naka-apply na ang points mo.</p>
+        {% else %}
+        <form method="POST" action="{{ url_for('customer_portal.api_confirm_order', customer_id=customer.id, order_id=o.id) }}" class="mt-2">
+          <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-xs font-semibold">✅ Kumpirmahin ang Pagkatanggap (para makuha ang points)</button>
+        </form>
+        {% endif %}
+      {% endif %}
+      {% endif %}
 
     </div>
     {% else %}
