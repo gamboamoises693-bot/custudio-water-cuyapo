@@ -17,7 +17,7 @@
     </div>
     <div class="flex gap-2">
       <button onclick="document.getElementById('markModal-{{ o.id }}').classList.remove('hidden')" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Mark as Delivered</button>
-      {% if current_user.is_super_admin %}
+      {% if current_user.is_super_admin or current_user.role == 'owner' %}
       <form method="POST" action="{{ url_for('deliveries.delete', order_id=o.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete/cancel ang delivery na ito? Hindi na ito mababawi.');">
         <button class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-3 py-2 text-sm">🗑️</button>
       </form>

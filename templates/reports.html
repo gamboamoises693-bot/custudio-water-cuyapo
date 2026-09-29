@@ -3,11 +3,29 @@
 {% block content %}
 <h1 class="text-2xl font-bold text-gray-800 mb-6">Reports - Purok 6 Malineng, Cuyapo N.E.</h1>
 
-<div class="flex gap-2 mb-6">
+<div class="flex gap-2 mb-4 flex-wrap">
   <a href="{{ url_for('sales.reports', period='daily') }}" class="text-xs px-3 py-1.5 rounded-full {{ 'bg-aqua-500 text-white' if period == 'daily' else 'bg-gray-100 text-gray-600' }}">Daily</a>
   <a href="{{ url_for('sales.reports', period='weekly') }}" class="text-xs px-3 py-1.5 rounded-full {{ 'bg-aqua-500 text-white' if period == 'weekly' else 'bg-gray-100 text-gray-600' }}">Weekly</a>
   <a href="{{ url_for('sales.reports', period='monthly') }}" class="text-xs px-3 py-1.5 rounded-full {{ 'bg-aqua-500 text-white' if period == 'monthly' else 'bg-gray-100 text-gray-600' }}">Monthly</a>
 </div>
+
+<!-- Custom date filter ("i-search ang araw na gusto balikan") -->
+<form method="GET" class="bg-white rounded-2xl shadow p-4 mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
+  <div class="flex-1">
+    <label class="text-xs font-semibold text-gray-600">Mula (start date)</label>
+    <input name="start_date" type="date" value="{{ filter_start }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+  </div>
+  <div class="flex-1">
+    <label class="text-xs font-semibold text-gray-600">Hanggang (end date, optional)</label>
+    <input name="end_date" type="date" value="{{ filter_end }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+  </div>
+  <div class="flex gap-2">
+    <button type="submit" class="bg-aqua-500 hover:bg-aqua-600 text-white px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap">🔍 I-filter</button>
+    {% if filter_start %}
+    <a href="{{ url_for('sales.reports') }}" class="border border-gray-300 px-4 py-2 rounded-lg text-sm whitespace-nowrap">Clear</a>
+    {% endif %}
+  </div>
+</form>
 
 <!-- Daily Closing -->
 <div class="bg-white rounded-2xl shadow p-5 mb-6">
@@ -22,6 +40,50 @@
     <input name="amount" type="number" step="0.01" placeholder="Amount" class="w-full sm:w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
     <button class="w-full sm:w-auto bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">+ Add</button>
   </form>
+</div>
+
+<!-- Expense Breakdown - editable/deletable (Cindy/owner + staff can manage
+     these, not locked to Isesmo) for whichever period/date-range is
+     currently selected above. -->
+<div class="bg-white rounded-2xl shadow p-5 mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="font-semibold text-gray-800">🧾 Expense Breakdown{% if filter_start %} ({{ filter_start }}{% if filter_end %} to {{ filter_end }}{% endif %}){% else %} ({{ period }}){% endif %}</h2>
+    <span class="text-sm font-bold text-red-500">₱{{ "{:,.2f}".format(total_period_expenses) }}</span>
+  </div>
+  <ul class="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+    {% for e in period_expenses %}
+    <li class="py-2 flex items-center justify-between gap-2 text-sm">
+      <div class="min-w-0">
+        <p class="font-medium text-gray-800 truncate">{{ e.label }}</p>
+        <p class="text-xs text-gray-400">{{ e.display_date }}</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="font-semibold text-red-500">₱{{ "{:,.2f}".format(e.amount) }}</span>
+        <button type="button" onclick="document.getElementById('editExpModal-{{ e.id }}').classList.remove('hidden')" class="text-gray-500 hover:text-gray-700">✏️</button>
+        <form method="POST" action="{{ url_for('sales.delete_expense', expense_id=e.id) }}" onsubmit="return confirm('I-delete itong expense?');">
+          <button class="text-red-500 hover:text-red-700">🗑️</button>
+        </form>
+      </div>
+    </li>
+
+    <!-- Edit Expense Modal -->
+    <div id="editExpModal-{{ e.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+        <h2 class="font-bold text-lg mb-4">Edit Expense</h2>
+        <form method="POST" action="{{ url_for('sales.edit_expense', expense_id=e.id) }}" class="space-y-3">
+          <input name="label" required value="{{ e.label }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <input name="amount" type="number" step="0.01" required value="{{ e.amount }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+          <div class="flex gap-2 pt-1">
+            <button type="button" onclick="document.getElementById('editExpModal-{{ e.id }}').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+            <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <li class="py-3 text-sm text-gray-400">Walang expense sa period na ito.</li>
+    {% endfor %}
+  </ul>
 </div>
 
 <!-- Period totals -->

@@ -68,7 +68,7 @@
             {% elif o.status == 'on_delivery' %}
             <span class="text-xs text-gray-400">Sa Deliveries page</span>
             {% endif %}
-            {% if current_user.is_super_admin %}
+            {% if current_user.is_super_admin or current_user.role == 'owner' %}
             <form method="POST" action="{{ url_for('orders.delete', order_id=o.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete ang order na ito? Hindi na ito mababawi.');">
               <button class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded">🗑️</button>
             </form>
@@ -110,7 +110,7 @@
       {% elif o.status == 'on_delivery' %}
       <span class="flex-1 text-xs text-gray-400 py-2">Sa Deliveries page</span>
       {% endif %}
-      {% if current_user.is_super_admin %}
+      {% if current_user.is_super_admin or current_user.role == 'owner' %}
       <form method="POST" action="{{ url_for('orders.delete', order_id=o.id) }}" onsubmit="return confirm('Sigurado ka bang i-delete ang order na ito? Hindi na ito mababawi.');">
         <button class="text-xs bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg">🗑️</button>
       </form>

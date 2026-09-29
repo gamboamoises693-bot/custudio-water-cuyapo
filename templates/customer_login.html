@@ -19,7 +19,7 @@
     </div>
 
     <!-- Cross-promo: OMEGA PURIFIED ICE (same owner's other business) -->
-    <a href="https://omega-ice.onrender.com/customer" target="_blank" rel="noopener" class="block bg-gradient-to-br from-fuchsia-600 to-sky-500 rounded-2xl shadow p-4 text-white mb-4">
+    <a href="https://omega-ice.onrender.com/customer" target="_blank" rel="noopener" onclick="trackOmegaClick()" class="block bg-gradient-to-br from-fuchsia-600 to-sky-500 rounded-2xl shadow p-4 text-white mb-4">
       <div class="flex items-center gap-3 mb-2">
         <img src="{{ url_for('static', filename='images/omega_logo.png') }}" alt="Omega Purified Ice" class="w-14 h-14 object-contain shrink-0">
         <div>
@@ -97,6 +97,18 @@
   vid.addEventListener('loadedmetadata', show);
   vid.addEventListener('error', hide);
   src.addEventListener('error', hide);
+  // Engagement tracking for the System Activity page (Isesmo-only) - how
+  // many times the promo video actually gets played.
+  vid.addEventListener('play', function () {
+    fetch('/api/track/video-play', { method: 'POST' }).catch(function () {});
+  });
 })();
+
+// Engagement tracking: Omega Ice banner link click (see the <a onclick>
+// above). Fire-and-forget - never blocks or delays the actual navigation,
+// since the link already opens in a new tab (target="_blank").
+function trackOmegaClick() {
+  fetch('/api/track/omega-click', { method: 'POST' }).catch(function () {});
+}
 </script>
 {% endblock %}

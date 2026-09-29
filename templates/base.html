@@ -70,6 +70,9 @@
       <p class="font-medium text-gray-800">{{ current_user.name }}</p>
       <p class="text-xs text-gray-500 capitalize">{{ current_user.role }}</p>
       <a href="{{ url_for('auth.logout') }}" class="text-xs text-aqua-600 hover:underline">Logout</a>
+      {% if current_user.is_super_admin and push_enabled %}
+      <button type="button" onclick="enableIsesmoPush()" id="pushBtn" class="block text-xs text-aqua-600 hover:underline mt-1">🔔 Enable Notifications</button>
+      {% endif %}
       <p class="text-[10px] text-gray-300 mt-3">Developed by Moises Orio Gamboa</p>
     </div>
   </aside>
@@ -159,6 +162,42 @@
       navigator.serviceWorker.register("{{ url_for('static', filename='js/sw.js') }}").catch(function () {});
     });
   }
+
+  {% if current_user and current_user.is_super_admin and push_enabled %}
+  // Lets Isesmo opt this device in to receive a push notification for
+  // EVERY action in the app (see models/activity.py's record_action() and
+  // push_notify.send_push_to_isesmo()). Only shown to the super-admin
+  // account - see templates/base.html's sidebar button above.
+  function urlBase64ToUint8ArrayStaff(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+  }
+  async function enableIsesmoPush() {
+    const btn = document.getElementById('pushBtn');
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        alert('Hindi supported ng browser mo ang push notifications.');
+        return;
+      }
+      const reg = await navigator.serviceWorker.register("{{ url_for('static', filename='js/sw.js') }}");
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { alert('Kailangan payagan ang notifications sa browser.'); return; }
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8ArrayStaff("{{ vapid_public_key }}"),
+        });
+      }
+      await fetch("{{ url_for('staff_push_subscribe') }}", {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(sub),
+      });
+      if (btn) btn.textContent = '🔔 Naka-enable na ang Notifications';
+    } catch (e) { console.log('push setup failed:', e); alert('Hindi na-enable ang notifications.'); }
+  }
+  {% endif %}
 </script>
 </body>
 </html>
