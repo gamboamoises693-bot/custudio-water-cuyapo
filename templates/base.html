@@ -153,6 +153,16 @@
   {% block guest_content %}{% endblock %}
 {% endif %}
 
+<!-- PWA Install button - floating, global on every page (staff, owner, AND
+     customer portal). Hidden by default; JS below reveals it only when the
+     browser actually offers the install prompt (i.e. real chance to
+     install, not installed yet). bottom-20 on mobile clears the logged-in
+     bottom nav bar (h-16 + spacing); md:bottom-4 since that bar is
+     desktop-hidden anyway. -->
+<button type="button" id="pwaInstallBtn" onclick="triggerPwaInstall()" class="hidden fixed bottom-20 md:bottom-4 right-4 z-50 bg-aqua-500 hover:bg-aqua-600 text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg">
+  📲 I-install ang App
+</button>
+
 <script>
   // PWA: register the service worker site-wide (installable "Add to Home
   // Screen" like the Omega Ice app - see static/manifest.json for the
@@ -162,6 +172,38 @@
       navigator.serviceWorker.register("{{ url_for('static', filename='js/sw.js') }}").catch(function () {});
     });
   }
+
+  // PWA Install button (global - see the floating button above). Chrome/
+  // Edge (desktop + Android) fire "beforeinstallprompt" when the manifest
+  // + service worker qualify AND the app isn't installed yet. We stash
+  // that event and show our OWN button instead of relying on the
+  // browser's address-bar install icon, which most users never notice.
+  // NOTE: iOS Safari never fires this event (no beforeinstallprompt
+  // support there) - iOS users still install manually via Share > Add to
+  // Home Screen. That's a browser limitation, not something fixable here.
+  let deferredInstallPrompt = null;
+  const pwaInstallBtn = document.getElementById("pwaInstallBtn");
+
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (pwaInstallBtn) pwaInstallBtn.classList.remove("hidden");
+  });
+
+  async function triggerPwaInstall() {
+    if (!deferredInstallPrompt) return;
+    pwaInstallBtn.classList.add("hidden");
+    deferredInstallPrompt.prompt();
+    try { await deferredInstallPrompt.userChoice; } catch (e) { /* ignore */ }
+    deferredInstallPrompt = null;
+  }
+
+  // Covers the case where the user installed via the browser's own icon
+  // instead of tapping our button - hide ours either way once installed.
+  window.addEventListener("appinstalled", function () {
+    if (pwaInstallBtn) pwaInstallBtn.classList.add("hidden");
+    deferredInstallPrompt = null;
+  });
 
   {% if current_user and current_user.is_super_admin and push_enabled %}
   // Lets Isesmo opt this device in to receive a push notification for
