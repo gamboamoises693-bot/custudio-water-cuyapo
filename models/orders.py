@@ -33,7 +33,7 @@ from models.pricing import get_container_type, DEFAULT_CONTAINER_TYPE
 ORDERS = "orders"
 DELIVERIES = "deliveries"
 
-VALID_STATUSES = ("pending", "accepted", "on_delivery", "delivered", "paid", "utang")
+VALID_STATUSES = ("pending", "accepted", "on_delivery", "delivered", "paid", "utang", "declined")
 VALID_PAYMENT_TYPES = ("cash", "gcash", "utang")
 
 # Walk-in orders (no linked customer account) - for buyers who don't want to
@@ -115,6 +115,10 @@ def create_order(customer_id, containers_qty, delivery_date=None, chat_thread_id
         "delivery_date": delivery_date or "",
         "status": "pending",
         "chat_thread_id": resolved_thread_id,
+        "decline_reason": None,
+        # Only the CUSTOMER's own confirm_delivery() (below) flips this -
+        # it's what now triggers loyalty gallons, not mark_delivered().
+        "customer_confirmed": False,
     }
     order_ref.set(data)
     if customer_id != WALKIN_CUSTOMER_ID:
@@ -166,6 +170,58 @@ def accept_order(order_id):
     return get_order(order_id)
 
 
+def decline_order(order_id, reason):
+    """Owner/staff declines a 'pending' order (e.g. out of stock, can't
+    deliver to that area/date, etc). The reason is REQUIRED (enforced by
+    the route) and shown directly to the customer who placed it on their
+    Order History page, plus sent to them via chat - same
+    notify-the-customer pattern as mark_delivered()'s delivery message."""
+    from models.chats import send_message
+
+    order = get_order(order_id)
+    if not order:
+        raise ValueError("Order not found")
+
+    db.collection(ORDERS).document(order_id).update({
+        "status": "declined",
+        "decline_reason": reason,
+    })
+
+    thread_id = order.get("chat_thread_id")
+    if thread_id:
+        send_message(thread_id, "owner", "system", f"❌ Pasensya na po, na-decline ang order nyo. Dahilan: {reason}")
+
+    return get_order(order_id)
+
+
+def confirm_delivery(order_id, customer_id):
+    """Customer taps "Kumpirmahin" on their own Order History page after
+    actually receiving the delivery. THIS is now the trigger for loyalty
+    gallons (per owner's request - see models/loyalty.py module docstring
+    for the safety reasoning), not mark_delivered() anymore. Idempotent -
+    calling it again on an already-confirmed order is a silent no-op so a
+    double-tap/refresh can't double-credit gallons."""
+    from models import loyalty
+
+    order = get_order(order_id)
+    if not order:
+        raise ValueError("Order not found")
+    if order.get("customer_id") != customer_id:
+        raise ValueError("Hindi mo pwedeng kumpirmahin ang order ng ibang customer.")
+    if order.get("status") not in ("delivered", "paid", "utang"):
+        raise ValueError("Hindi pa na-deliver ang order na ito.")
+    if order.get("customer_confirmed"):
+        return order
+
+    db.collection(ORDERS).document(order_id).update({"customer_confirmed": True})
+
+    delivered_qty = order.get("delivered_qty") or order.get("containers_qty") or 0
+    gallons_per_unit = float(order.get("gallons_total", 0)) / float(order.get("containers_qty") or 1)
+    loyalty.add_gallons(customer_id, gallons_per_unit * int(delivered_qty), order_id=order_id)
+
+    return get_order(order_id)
+
+
 def start_delivery(order_id):
     """Owner/staff sends an 'accepted' order out for delivery. No named
     rider is recorded (the branch's own external delivery riders aren't
@@ -184,7 +240,6 @@ def mark_delivered(order_id, delivered_qty, payment_type, amount_collected,
     collection, since individual riders aren't tracked in-system anymore."""
     from models.chats import send_message
     from models.customers import adjust_utang
-    from models import loyalty
 
     order = get_order(order_id)
     if not order:
@@ -217,14 +272,10 @@ def mark_delivered(order_id, delivered_qty, payment_type, amount_collected,
     elif order.get("status") == "utang":
         adjust_utang(order["customer_id"], -order.get("amount_due", 0))
 
-    # MODULE 9: stamp the loyalty card now that the order has actually
-    # handed over the containers - never on mere order placement (see
-    # models/loyalty.py module docstring for why this is the only place
-    # loyalty gallons get awarded). Uses the order's own per-unit gallons
-    # (container types differ in size now) times what was ACTUALLY
-    # delivered, not the originally ordered qty (they can differ).
-    gallons_per_unit = float(order.get("gallons_total", 0)) / float(order.get("containers_qty") or 1)
-    loyalty.add_gallons(order["customer_id"], gallons_per_unit * int(delivered_qty), order_id=order_id)
+    # NOTE: loyalty gallons are NO LONGER awarded here - per owner's
+    # request, they're only credited once the CUSTOMER confirms actual
+    # receipt from their own portal (see confirm_delivery() above and
+    # models/loyalty.py's module docstring for why this is still safe).
 
     thread_id = order.get("chat_thread_id")
     if thread_id:

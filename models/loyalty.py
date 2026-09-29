@@ -17,16 +17,20 @@ applied as a peso discount at THAT order's own per-gallon rate
 (unit_price / gallons_per_container) - so redeeming never depends on which
 container type they happen to be ordering that day.
 
-Deliberate adaptation vs. Omega Ice (unchanged from earlier design): a
-customer here can NEVER self-mark their own order "Delivered" - loyalty
-gallons (and the Free Spin bonus below) are only ever awarded from
-models/orders.py's mark_delivered(), which only OWNER/STAFF can trigger
-(from the Deliveries page, after the order was actually handed over).
-That's because Custodio Water's "delivered" status also carries the
-payment info (amount collected, cash/gcash/utang) that only whoever
-processed the handover can honestly supply - letting a customer
-self-declare "delivered" would let them skip/undercount payment AND farm
-free loyalty gallons for themselves.
+Deliberate adaptation vs. Omega Ice: a customer here can NEVER self-mark
+their own order "Delivered" - that status still also carries the payment
+info (amount collected, cash/gcash/utang) that only whoever processed the
+handover can honestly supply, and stays OWNER/STAFF-only (Deliveries page,
+mark_delivered()).
+
+UPDATED per owner's request: loyalty gallons are now only awarded once the
+CUSTOMER confirms they actually received the delivery (models/orders.py's
+confirm_delivery(), triggered from their own portal's Order History page)
+- NOT automatically the moment staff marks it delivered. This doesn't
+reopen the old farming risk: staff still has to mark the order
+delivered/paid first (the customer can't fabricate a delivery record),
+the customer just acknowledges receipt of one that already exists before
+the points post.
 """
 
 import random
