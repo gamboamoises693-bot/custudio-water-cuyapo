@@ -12,6 +12,7 @@
         <p class="font-semibold text-gray-800">{{ o.customer_name }}</p>
         <p class="text-xs text-gray-500">{{ o.containers_qty }} containers · Due: ₱{{ "%.2f"|format(o.amount_due) }}</p>
         <p class="text-xs text-gray-400">Delivery date: {{ o.delivery_date or "ASAP" }}</p>
+        <p class="text-xs text-gray-400">🕒 Ni-order noong: {{ o.order_date | manila_dt }}</p>
       </div>
       <span class="text-xs bg-aqua-100 text-aqua-700 px-2 py-1 rounded-full">on delivery</span>
     </div>

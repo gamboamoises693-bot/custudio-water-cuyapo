@@ -15,6 +15,7 @@
         <img src="{{ m.image_url }}" class="rounded-lg max-w-full mb-1">
         {% endif %}
         {% if m.message_text %}<p>{{ m.message_text }}</p>{% endif %}
+        <p class="text-[10px] opacity-60 mt-1">{{ m.timestamp | manila_time }}</p>
       </div>
     </div>
     {% else %}
@@ -60,6 +61,10 @@ function renderMessages(messages) {
       p.textContent = m.message_text;
       bubble.appendChild(p);
     }
+    const timeP = document.createElement('p');
+    timeP.className = 'text-[10px] opacity-60 mt-1';
+    timeP.textContent = m.time_label || '';
+    bubble.appendChild(timeP);
     wrap.appendChild(bubble);
     messagesEl.appendChild(wrap);
   });

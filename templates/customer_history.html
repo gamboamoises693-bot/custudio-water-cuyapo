@@ -70,6 +70,7 @@
         <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ badge }}">{{ o.status }}</span>
       </div>
       <p class="text-xs text-gray-400">{{ o.delivery_date or "Walang petsa" }}</p>
+      <p class="text-[10px] text-gray-400">🕒 Ni-order noong: {{ o.order_date | manila_dt }}</p>
       <p class="text-sm text-gray-600 mt-1">₱{{ "%.2f"|format(o.amount_due) }}{% if o.get('free_gallons_applied') %} · 🎁 {{ o.free_gallons_applied }} gallon libre (loyalty card){% endif %}</p>
 
       {% if o.status == 'declined' %}
