@@ -19,6 +19,30 @@
   </div>
 {% endif %}
 
+<!-- Owner-only: Monthly Financials (Isesmo/developer account intentionally
+     excluded per owner's request - profit figures are private to the
+     actual business owner, not the app developer). -->
+{% if monthly_financials %}
+<div class="bg-white rounded-2xl shadow p-5 mb-6">
+  <h2 class="font-semibold text-gray-800 mb-1">💰 Financials (Month-to-Date)</h2>
+  <p class="text-xs text-gray-500 mb-3">Mula {{ today[:7] }}-01 hanggang ngayon</p>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+    <div>
+      <p class="text-xs text-gray-500 uppercase tracking-wide">Expenses (Monthly)</p>
+      <p class="text-xl font-bold text-red-500 mt-1">₱{{ "{:,.2f}".format(monthly_financials.expenses_month) }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-gray-500 uppercase tracking-wide">Profit (Monthly)</p>
+      <p class="text-xl font-bold {{ 'text-green-600' if monthly_financials.profit_month >= 0 else 'text-red-600' }} mt-1">₱{{ "{:,.2f}".format(monthly_financials.profit_month) }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-gray-500 uppercase tracking-wide">Profit Margin (Monthly)</p>
+      <p class="text-xl font-bold {{ 'text-green-600' if monthly_financials.profit_margin_month >= 0 else 'text-red-600' }} mt-1">{{ "%.1f"|format(monthly_financials.profit_margin_month) }}%</p>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
   <div class="bg-white rounded-2xl shadow p-5">
     <p class="text-xs text-gray-500 uppercase tracking-wide">Sales Today</p>
