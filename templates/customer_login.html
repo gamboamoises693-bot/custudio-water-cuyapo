@@ -34,6 +34,7 @@
         <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2.5 text-sm font-semibold">Login</button>
       </form>
       <button onclick="document.getElementById('forgotModal').classList.remove('hidden')" class="w-full text-center text-xs text-aqua-600 hover:underline mt-3">Nakalimutan ang password?</button>
+      <button onclick="openQrModal()" class="w-full text-center text-xs text-aqua-600 hover:underline mt-2 font-semibold">🔲 Mag-login gamit ang QR Code</button>
     </div>
 
     <!-- Cross-promo: OMEGA PURIFIED ICE (same owner's other business) -->
@@ -85,8 +86,56 @@
     <button type="button" onclick="document.getElementById('forgotModal').classList.add('hidden')" class="w-full border border-gray-300 rounded-lg py-2 text-sm">Close</button>
   </div>
 </div>
+
+<!-- QR Login Modal - scans a customer's personal QR code (the one printed/
+     shown to them from the Customers page's QR feature) either LIVE via
+     the phone's camera (getUserMedia + jsQR, right here in the browser -
+     no separate camera app needed) or from an uploaded image (gallery
+     screenshot of the QR, or a photo of the printed code). Both paths
+     decode down to the SAME /customer/qr-login/<token> URL that the
+     backend already understands (routes/customer_portal.py's qr_login())
+     - this modal is just a second way to reach that URL besides pointing
+     an external camera app at a printed code. -->
+<div id="qrLoginModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+  <div class="bg-white rounded-2xl p-6 w-full max-w-sm space-y-3">
+    <h2 class="font-bold text-lg mb-1">🔲 QR Code Login</h2>
+    <p class="text-xs text-gray-500 mb-2">I-scan ang personal QR code mo (mula sa tindahan) - kamera o mag-upload ng larawan.</p>
+
+    <div class="flex gap-2">
+      <button type="button" id="qrTabCamera" onclick="switchQrTab('camera')" class="flex-1 py-2 rounded-lg text-sm font-semibold bg-aqua-500 text-white">📷 Camera</button>
+      <button type="button" id="qrTabUpload" onclick="switchQrTab('upload')" class="flex-1 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600">🖼️ Upload</button>
+    </div>
+
+    <!-- Camera pane -->
+    <div id="qrCameraPane">
+      <div class="relative bg-black rounded-xl overflow-hidden" style="aspect-ratio: 1/1;">
+        <video id="qrVideo" class="w-full h-full object-cover" playsinline muted></video>
+      </div>
+      <p id="qrCameraStatus" class="text-xs text-gray-500 text-center mt-2">Ipapayag ang kamera para simulan ang pag-scan...</p>
+    </div>
+
+    <!-- Upload pane -->
+    <div id="qrUploadPane" class="hidden">
+      <label class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-8 cursor-pointer hover:bg-gray-50">
+        <span class="text-3xl mb-1">🖼️</span>
+        <span class="text-sm text-gray-600 font-medium">I-tap para pumili ng larawan ng QR</span>
+        <input type="file" accept="image/*" id="qrFileInput" class="hidden" onchange="handleQrFileUpload(event)">
+      </label>
+      <p id="qrUploadStatus" class="text-xs text-gray-500 text-center mt-2"></p>
+    </div>
+
+    <button type="button" onclick="closeQrModal()" class="w-full border border-gray-300 rounded-lg py-2 text-sm mt-1">Close</button>
+  </div>
+</div>
+
+<canvas id="qrCanvas" class="hidden"></canvas>
+
 <p class="text-xs text-gray-300 text-center mt-4">Developed by Moises Orio Gamboa</p>
 {% include "_christmas_snow.html" %}
+<!-- jsQR: pure-JS QR decoder, powers the in-app QR Login modal above (both
+     the live camera scan and the "upload an image" path use this same
+     decode() call - see decodeQrFromCanvas() below). -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 // Promo Video: only reveal the player once static/videos/promo.mp4 actually
 // exists (avoids a broken/empty black box before the video file is uploaded
@@ -145,5 +194,147 @@ function trackOmegaClick() {
     fetch('https://omega-ice.onrender.com/', { mode: 'no-cors', keepalive: true }).catch(function () {});
   } catch (e) { /* older browsers without fetch keepalive support - safe no-op */ }
 })();
+
+// ============================================================
+// QR CODE LOGIN - live camera scan + upload-an-image, both decode with
+// jsQR (loaded above) and, on a valid hit, navigate to the decoded URL so
+// the EXISTING backend route (routes/customer_portal.py's qr_login())
+// does the actual login - this modal only gets the URL, it never talks to
+// the login API directly.
+// ============================================================
+let qrCameraStream = null;
+let qrScanLoopActive = false;
+
+function openQrModal() {
+  document.getElementById('qrLoginModal').classList.remove('hidden');
+  switchQrTab('camera');
+}
+
+function closeQrModal() {
+  document.getElementById('qrLoginModal').classList.add('hidden');
+  stopQrCamera();
+}
+
+function switchQrTab(tab) {
+  const cameraPane = document.getElementById('qrCameraPane');
+  const uploadPane = document.getElementById('qrUploadPane');
+  const tabCamera = document.getElementById('qrTabCamera');
+  const tabUpload = document.getElementById('qrTabUpload');
+  if (tab === 'camera') {
+    cameraPane.classList.remove('hidden');
+    uploadPane.classList.add('hidden');
+    tabCamera.className = 'flex-1 py-2 rounded-lg text-sm font-semibold bg-aqua-500 text-white';
+    tabUpload.className = 'flex-1 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600';
+    startQrCamera();
+  } else {
+    cameraPane.classList.add('hidden');
+    uploadPane.classList.remove('hidden');
+    tabCamera.className = 'flex-1 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600';
+    tabUpload.className = 'flex-1 py-2 rounded-lg text-sm font-semibold bg-aqua-500 text-white';
+    stopQrCamera();
+  }
+}
+
+async function startQrCamera() {
+  const statusEl = document.getElementById('qrCameraStatus');
+  const video = document.getElementById('qrVideo');
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      statusEl.textContent = 'Hindi supported ng browser mo ang camera scan. Gamitin na lang ang Upload.';
+      return;
+    }
+    // facingMode 'environment' = likad na camera (mas madaling i-focus sa
+    // isang QR code kaysa front/selfie camera).
+    qrCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = qrCameraStream;
+    await video.play();
+    statusEl.textContent = 'Itapat ang QR code sa loob ng frame...';
+    qrScanLoopActive = true;
+    requestAnimationFrame(qrScanLoop);
+  } catch (e) {
+    console.warn('[qr login] camera error:', e);
+    statusEl.textContent = 'Hindi ma-access ang camera. Siguraduhing pinayagan mo ang camera permission, o gamitin na lang ang Upload.';
+  }
+}
+
+function stopQrCamera() {
+  qrScanLoopActive = false;
+  if (qrCameraStream) {
+    qrCameraStream.getTracks().forEach(function (track) { track.stop(); });
+    qrCameraStream = null;
+  }
+}
+
+function qrScanLoop() {
+  if (!qrScanLoopActive) return;
+  const video = document.getElementById('qrVideo');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    const canvas = document.getElementById('qrCanvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = window.jsQR ? jsQR(imageData.data, imageData.width, imageData.height) : null;
+    if (code && code.data) {
+      stopQrCamera();
+      handleQrDecoded(code.data);
+      return;
+    }
+  }
+  requestAnimationFrame(qrScanLoop);
+}
+
+function handleQrFileUpload(event) {
+  const file = event.target.files[0];
+  const statusEl = document.getElementById('qrUploadStatus');
+  if (!file) return;
+  statusEl.textContent = 'Binabasa ang larawan...';
+
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    img.onload = function () {
+      const canvas = document.getElementById('qrCanvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = window.jsQR ? jsQR(imageData.data, imageData.width, imageData.height) : null;
+      if (code && code.data) {
+        handleQrDecoded(code.data);
+      } else {
+        statusEl.textContent = 'Walang na-detect na QR code sa larawan. Subukan ulit ng mas malinaw na larawan.';
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleQrDecoded(data) {
+  // Security check: only auto-navigate for a URL on THIS site (our own
+  // /customer/qr-login/<token> path) - never blindly follow whatever a
+  // scanned QR says, since a malicious/unrelated QR code could point
+  // anywhere. Anything else is rejected with a clear message instead of
+  // silently opening it.
+  try {
+    const url = new URL(data, window.location.origin);
+    const sameOrigin = url.origin === window.location.origin;
+    const isQrLoginPath = url.pathname.indexOf('/customer/qr-login/') === 0 || url.pathname === '/customer';
+    if (sameOrigin && isQrLoginPath) {
+      document.getElementById('qrCameraStatus').textContent = 'QR na-detect! Nagla-login...';
+      window.location.href = url.href;
+      return;
+    }
+  } catch (e) { /* not even a valid URL - falls through to the rejection below */ }
+
+  const msg = 'Hindi ito valid na QR code para sa Customer Portal login. Siguraduhing ang QR code na ni-scan mo ay galing sa Custodio Water.';
+  const cameraStatus = document.getElementById('qrCameraStatus');
+  const uploadStatus = document.getElementById('qrUploadStatus');
+  if (cameraStatus) cameraStatus.textContent = msg;
+  if (uploadStatus) uploadStatus.textContent = msg;
+}
 </script>
 {% endblock %}
