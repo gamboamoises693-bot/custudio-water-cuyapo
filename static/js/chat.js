@@ -45,32 +45,36 @@
     if (m.message_text) {
       inner += `<p>${escapeHtml(m.message_text)}</p>`;
     }
-    inner += `<p class="text-[10px] opacity-70 mt-1 capitalize">${m.sender_type}</p>`;
+    inner += `<p class="text-[10px] opacity-70 mt-1 capitalize">${m.sender_type} &middot; ${m.time_label || ""}</p>`;
+    if (!isCustomer && m.is_last_own) {
+      inner += `<p class="text-[10px] opacity-70 text-right">${m.seen ? "✓✓ Nakita na" : "✓ Naipadala"}</p>`;
+    }
 
-    return `<div class="flex ${align}"><div class="max-w-[75%] rounded-2xl px-4 py-2 text-sm ${bubbleClasses}">${inner}</div></div>`;
+    return `<div class="flex ${align}" data-msg-id="${m.id}"><div class="max-w-[75%] rounded-2xl px-4 py-2 text-sm ${bubbleClasses}">${inner}</div></div>`;
   }
 
-  let lastMessageIds = new Set(
-    Array.from(messagesBox.querySelectorAll("[data-msg-id]")).map((el) => el.dataset.msgId)
-  );
+  // Signature covers id + seen-state, not just id, so a "seen" flip on an
+  // already-visible message (customer just opened/polled their side) still
+  // triggers a re-render - a plain id-only Set comparison would miss that,
+  // since no message was added or removed.
+  function buildSignature(messages) {
+    return messages.map((m) => `${m.id}:${m.seen ? 1 : 0}`).join(",");
+  }
+
+  let lastSignature = null; // force a first real sync on the initial poll
 
   async function pollMessages() {
     try {
       const res = await fetch(`/chats/${threadId}/poll`, { credentials: "same-origin" });
       if (!res.ok) return;
       const data = await res.json();
-      const currentIds = new Set(data.messages.map((m) => m.id));
+      const signature = buildSignature(data.messages);
 
-      // Only re-render if something actually changed (new message arrived).
-      const changed =
-        currentIds.size !== lastMessageIds.size ||
-        [...currentIds].some((id) => !lastMessageIds.has(id));
-
-      if (changed) {
+      if (signature !== lastSignature) {
         messagesBox.innerHTML = data.messages.map(renderMessage).join("") ||
           '<p class="text-center text-sm text-gray-400 mt-10">Simulan ang usapan...</p>';
         messagesBox.scrollTop = messagesBox.scrollHeight;
-        lastMessageIds = currentIds;
+        lastSignature = signature;
       }
     } catch (err) {
       // Silently ignore transient network errors - next poll will retry.
