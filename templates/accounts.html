@@ -27,7 +27,13 @@
       </div>
       <p class="text-xs text-gray-500 truncate">{{ u.email }}</p>
     </div>
-    <button onclick="document.getElementById('pwModal-{{ u.id }}').classList.remove('hidden')" title="Reset password" class="shrink-0 text-aqua-600 hover:text-aqua-800 text-lg px-1">🔑</button>
+    <div class="flex items-center gap-1 shrink-0">
+      <button onclick="document.getElementById('renameModal-{{ u.id }}').classList.remove('hidden')" title="Palitan ang pangalan" class="text-gray-500 hover:text-gray-700 text-lg px-1">✏️</button>
+      <button onclick="document.getElementById('pwModal-{{ u.id }}').classList.remove('hidden')" title="Reset password" class="text-aqua-600 hover:text-aqua-800 text-lg px-1">🔑</button>
+      {% if u.id != current_user.id %}
+      <button onclick="document.getElementById('delModal-{{ u.id }}').classList.remove('hidden')" title="I-delete ang account" class="text-red-500 hover:text-red-700 text-lg px-1">🗑️</button>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Reset Password Modal -->
@@ -44,6 +50,37 @@
       </form>
     </div>
   </div>
+
+  <!-- Rename Modal -->
+  <div id="renameModal-{{ u.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+      <h2 class="font-bold text-lg mb-1">Palitan ang Pangalan</h2>
+      <p class="text-xs text-gray-500 mb-4">Para sa account na {{ u.email }}. Ang role badge na "{{ 'Owner' if u.role == 'owner' else 'Staff' }}" ay hiwalay nang ipapakita, kaya hindi na kailangang isama sa pangalan (e.g. "Boss" sa halip na "Boss (Owner)").</p>
+      <form method="POST" action="{{ url_for('accounts.rename', user_id=u.id) }}" class="space-y-3">
+        <input name="new_name" required value="{{ u.name }}" placeholder="Bagong pangalan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="document.getElementById('renameModal-{{ u.id }}').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+          <button type="submit" class="flex-1 bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2 text-sm font-semibold">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  {% if u.id != current_user.id %}
+  <div id="delModal-{{ u.id }}" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+      <h2 class="font-bold text-lg mb-1 text-red-600">I-delete ang Account?</h2>
+      <p class="text-xs text-gray-500 mb-4">Permanenteng mabubura ang login account ni <b>{{ u.name }}</b> ({{ u.email }}). Hindi na siya makaka-login pagkatapos nito. Gamitin ito para sa mga inactive/old na staff account na lang.</p>
+      <form method="POST" action="{{ url_for('accounts.delete', user_id=u.id) }}">
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="document.getElementById('delModal-{{ u.id }}').classList.add('hidden')" class="flex-1 border border-gray-300 rounded-lg py-2 text-sm">Cancel</button>
+          <button type="submit" class="flex-1 bg-red-500 hover:bg-red-600 text-white rounded-lg py-2 text-sm font-semibold">I-delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
   {% else %}
   <p class="p-6 text-center text-gray-400 text-sm">Walang accounts.</p>
   {% endfor %}

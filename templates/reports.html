@@ -17,10 +17,10 @@
     <div><p class="text-xs text-gray-500">Expenses</p><p class="text-lg font-bold text-red-500">₱{{ "{:,.2f}".format(total_expenses_today) }}</p></div>
     <div><p class="text-xs text-gray-500">Net Income</p><p class="text-lg font-bold {{ 'text-green-600' if net_income_today >= 0 else 'text-red-600' }}">₱{{ "{:,.2f}".format(net_income_today) }}</p></div>
   </div>
-  <form method="POST" action="{{ url_for('sales.add_expense') }}" class="flex gap-2">
-    <input name="label" placeholder="Expense (e.g. gasolina, ice, sahod)" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-    <input name="amount" type="number" step="0.01" placeholder="Amount" class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
-    <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">+ Add</button>
+  <form method="POST" action="{{ url_for('sales.add_expense') }}" class="flex flex-col sm:flex-row gap-2">
+    <input name="label" placeholder="Expense (e.g. gasolina, ice, sahod)" class="w-full sm:flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    <input name="amount" type="number" step="0.01" placeholder="Amount" class="w-full sm:w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+    <button class="w-full sm:w-auto bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">+ Add</button>
   </form>
 </div>
 
