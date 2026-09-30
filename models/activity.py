@@ -151,8 +151,43 @@ def save_video_order(order):
     point is Isesmo setting the FULL sequence at once, so a stale leftover
     entry from a previous save should never linger. The first filename in
     `order` is effectively "pinned": _list_promo_videos() always returns
-    this list first, so that video is always what auto-plays by default."""
+    this list first, so that video is always what auto-plays by default.
+
+    Uses merge=True at the FIELD level (the "order" key only) so this never
+    wipes out the sibling "views" map written by bump_video_view() below -
+    both live in the same small settings doc, same as engagement_counters."""
     try:
-        db.collection("settings").document(SETTINGS_DOC_VIDEO_PLAYLIST).set({"order": list(order)})
+        db.collection("settings").document(SETTINGS_DOC_VIDEO_PLAYLIST).set({"order": list(order)}, merge=True)
     except Exception as e:
         print(f"[activity] save_video_order error: {e}")
+
+
+def bump_video_view(filename):
+    """Per-video play counter, per owner's request ("gusto ko per video may
+    nakalagay kung ilang views") - a nested 'views' map inside the SAME
+    video_playlist_settings doc that stores the pin/order list (one small
+    doc, not a doc-per-video - consistent with bump_engagement()'s
+    lightweight-counter approach above). Read-modify-write, same as
+    bump_engagement() - not perfectly race-safe under heavy concurrent
+    load, but more than accurate enough at this app's actual traffic."""
+    if not filename:
+        return
+    try:
+        ref = db.collection("settings").document(SETTINGS_DOC_VIDEO_PLAYLIST)
+        snap = ref.get()
+        data = snap.to_dict() if snap.exists else {}
+        views = dict(data.get("views", {}))
+        views[filename] = views.get(filename, 0) + 1
+        ref.set({"views": views}, merge=True)
+    except Exception as e:
+        print(f"[activity] bump_video_view error: {e}")
+
+
+def get_video_views():
+    """Returns {filename: view_count} for every video ever played. Used by
+    _list_promo_videos() to attach a 'views' number to each playlist entry
+    (shown on the Video Playlist admin page) - a video never played simply
+    won't have a key here, callers default it to 0."""
+    snap = db.collection("settings").document(SETTINGS_DOC_VIDEO_PLAYLIST).get()
+    data = snap.to_dict() if snap.exists else {}
+    return data.get("views", {})
