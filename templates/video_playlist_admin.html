@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Video Playlist{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-1">🎬 Video Playlist Manager</h1>
+<p class="text-sm text-gray-500 mb-6">
+  Ito ang pagkakasunod-sunod ng promo videos sa Customer Login page at Customer Dashboard.
+  Ang <strong>pinakaunang video sa listahan</strong> ang laging una ipapplay (default) sa customer -
+  gamitin ang "📌 I-pin" para gawing una agad ang isang video, o ang ⬆️/⬇️ para ayusin ang buong sunod-sunod.
+</p>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="mb-4 space-y-2">
+    {% for category, message in messages %}
+    <div class="text-sm rounded-lg px-4 py-2 {{ 'bg-green-50 text-green-700' if category == 'success' else 'bg-red-50 text-red-700' }}">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<div class="bg-white rounded-2xl shadow p-4">
+  {% if not videos %}
+  <p class="text-sm text-gray-400">
+    Wala pang video na naka-upload sa <code class="bg-gray-100 px-1 rounded">static/videos/</code>.
+    Mag-upload muna ng .mp4/.webm/.mov/.m4v file doon via GitHub, tapos balikan ang page na ito para i-arrange.
+  </p>
+  {% else %}
+  <div class="space-y-3">
+    {% for v in videos %}
+    <div class="flex items-center gap-3 border border-gray-100 rounded-xl p-3 {{ 'bg-aqua-50 border-aqua-200' if loop.first else '' }}">
+      <span class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold {{ 'bg-aqua-500 text-white' if loop.first else 'bg-gray-100 text-gray-500' }}">
+        {{ loop.index }}
+      </span>
+
+      <video src="{{ v.url }}" muted preload="metadata" class="w-20 h-14 object-cover rounded-lg bg-black shrink-0"></video>
+
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-gray-800 truncate">
+          {{ v.title }}
+          {% if loop.first %}
+          <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-aqua-500 text-white align-middle">📌 Pinned / Unang Play</span>
+          {% endif %}
+        </p>
+        <p class="text-xs text-gray-400 truncate">{{ v.filename }}</p>
+      </div>
+
+      <div class="flex items-center gap-1 shrink-0">
+        {% if not loop.first %}
+        <form method="POST" action="{{ url_for('customers.video_playlist_pin') }}">
+          <input type="hidden" name="filename" value="{{ v.filename }}">
+          <button type="submit" class="text-xs font-semibold px-2 py-1.5 rounded-lg bg-aqua-100 text-aqua-700 hover:bg-aqua-200" title="I-pin bilang unang video">📌</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('customers.video_playlist_move') }}">
+          <input type="hidden" name="filename" value="{{ v.filename }}">
+          <input type="hidden" name="direction" value="up">
+          <button type="submit" class="text-xs font-semibold px-2 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30" {{ 'disabled' if loop.first }} title="Umangat">⬆️</button>
+        </form>
+        <form method="POST" action="{{ url_for('customers.video_playlist_move') }}">
+          <input type="hidden" name="filename" value="{{ v.filename }}">
+          <input type="hidden" name="direction" value="down">
+          <button type="submit" class="text-xs font-semibold px-2 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30" {{ 'disabled' if loop.last }} title="Bumaba">⬇️</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
