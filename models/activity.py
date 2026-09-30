@@ -29,6 +29,7 @@ from firebase_config import db, server_timestamp
 
 SYSTEM_ACTIVITY_LOGS = "system_activity_logs"
 SETTINGS_DOC_ENGAGEMENT = "engagement_counters"
+SETTINGS_DOC_VIDEO_PLAYLIST = "video_playlist_settings"
 
 
 def log_system_activity(actor_name, actor_email, action, details="", actor_role=""):
@@ -131,3 +132,27 @@ def get_engagement():
         "omega_link_clicks": data.get("omega_link_clicks", 0),
         "omega_fb_clicks": data.get("omega_fb_clicks", 0),
     }
+
+
+def get_video_order():
+    """Returns Isesmo's saved promo-video playback order (list of
+    filenames, most-preferred/"pinned" first) as set on the Video Playlist
+    admin page (routes/customers.py's video_playlist_admin()). Empty list
+    if he hasn't arranged anything yet - callers then fall back to plain
+    alphabetical order (see routes/customer_portal.py's
+    _list_promo_videos())."""
+    snap = db.collection("settings").document(SETTINGS_DOC_VIDEO_PLAYLIST).get()
+    data = snap.to_dict() if snap.exists else {}
+    return data.get("order", [])
+
+
+def save_video_order(order):
+    """Overwrites the saved video order wholesale (not merge) - the whole
+    point is Isesmo setting the FULL sequence at once, so a stale leftover
+    entry from a previous save should never linger. The first filename in
+    `order` is effectively "pinned": _list_promo_videos() always returns
+    this list first, so that video is always what auto-plays by default."""
+    try:
+        db.collection("settings").document(SETTINGS_DOC_VIDEO_PLAYLIST).set({"order": list(order)})
+    except Exception as e:
+        print(f"[activity] save_video_order error: {e}")
