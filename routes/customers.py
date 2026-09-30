@@ -2,7 +2,6 @@
 
 import io
 import os
-import uuid
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, current_app
 from auth import login_required, role_required, super_admin_required
 from models import customers as customers_model
@@ -10,34 +9,6 @@ from models import chats as chats_model
 from models import customer_auth
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
-
-
-def _upload_promo_video_file(file_storage):
-    """Uploads a promo video straight to FIREBASE STORAGE (never this
-    server's own disk - see models/promo_videos.py's module docstring for
-    why) and returns (storage_path, public_url).
-
-    Deliberately has NO local-disk fallback, unlike routes/chats.py's
-    _upload_chat_image() - a "successful" local-only video save would just
-    silently vanish on the next Render deploy (ephemeral filesystem),
-    which is worse than telling Isesmo up front that the upload didn't
-    go through. Raises RuntimeError with a Taglish message safe to flash()
-    straight to the page when Storage isn't usable."""
-    from firebase_config import bucket, USING_MOCK_DB
-
-    if USING_MOCK_DB or bucket is None:
-        raise RuntimeError(
-            "Hindi pa naka-configure ang Firebase Storage sa deployment na ito "
-            "(o naka-mock/demo mode lang). Gamitin muna ang GitHub web upload "
-            "papunta sa static/videos/ habang wala pang Storage naka-set up."
-        )
-
-    ext = file_storage.filename.rsplit(".", 1)[1].lower()
-    blob_name = f"promo_videos/{uuid.uuid4().hex}.{ext}"
-    blob = bucket.blob(blob_name)
-    blob.upload_from_file(file_storage.stream, content_type=file_storage.content_type or "video/mp4")
-    blob.make_public()
-    return blob_name, blob.public_url
 
 BARANGAYS_CUYAPO = [
     "Baloy", "Bambanaba", "Bantug", "Bentigan", "Bibiclat", "Bonifacio",
@@ -450,89 +421,4 @@ def video_playlist_move():
         if 0 <= swap_idx < len(order):
             order[idx], order[swap_idx] = order[swap_idx], order[idx]
             save_video_order(order)
-    return redirect(url_for("customers.video_playlist_admin"))
-
-
-@customers_bp.route("/videos/upload", methods=["POST"])
-@login_required
-@super_admin_required
-def video_playlist_upload():
-    """Lets Isesmo upload a promo video DIRECTLY from this page instead of
-    the GitHub web upload workflow - goes straight to Firebase Storage
-    (persistent - see _upload_promo_video_file() above for why NOT the
-    server's own disk), with a small Firestore record (models/
-    promo_videos.py) so _list_promo_videos() lists it alongside any video
-    files still sitting in static/videos/ from the old workflow. Both ways
-    of adding a video keep working side by side."""
-    from routes.customer_portal import _VIDEO_EXTS
-    from models.promo_videos import create_promo_video_doc
-
-    file = request.files.get("video_file")
-    if not file or not file.filename:
-        flash("Pumili muna ng video file na i-a-upload.", "danger")
-        return redirect(url_for("customers.video_playlist_admin"))
-
-    if "." not in file.filename or file.filename.rsplit(".", 1)[1].lower() not in _VIDEO_EXTS:
-        flash("Invalid na file type - .mp4, .webm, .mov, o .m4v lang ang tinatanggap.", "danger")
-        return redirect(url_for("customers.video_playlist_admin"))
-
-    title = request.form.get("title", "").strip()
-    if not title:
-        import re
-        stem = file.filename.rsplit(".", 1)[0]
-        title = re.sub(r"[-_]+", " ", stem).strip().title() or "Video"
-
-    try:
-        storage_path, url = _upload_promo_video_file(file)
-    except RuntimeError as e:
-        flash(str(e), "danger")
-        return redirect(url_for("customers.video_playlist_admin"))
-    except Exception as e:
-        flash(f"Hindi na-upload ang video: {e}", "danger")
-        return redirect(url_for("customers.video_playlist_admin"))
-
-    filename_key = storage_path.rsplit("/", 1)[1]  # server-generated, unique - no collision with GitHub files
-    create_promo_video_doc(filename_key, title, url, storage_path)
-    flash(f'Na-upload ang "{title}" - makikita na agad ito sa Customer Login/Dashboard.', "success")
-    return redirect(url_for("customers.video_playlist_admin"))
-
-
-@customers_bp.route("/videos/delete", methods=["POST"])
-@login_required
-@super_admin_required
-def video_playlist_delete():
-    """Deletes an ADMIN-UPLOADED (Firebase-Storage-hosted) promo video only.
-    A video still sitting in static/videos/ (the old GitHub-upload
-    workflow) has to be removed via GitHub instead - this app has no way
-    to delete a file from its own deployed repo at runtime, only from
-    Storage/Firestore. The admin template only shows this button on
-    uploaded-here videos for that reason (see v.source == 'upload')."""
-    from models.promo_videos import delete_promo_video_doc
-    from models.activity import get_video_order, save_video_order
-
-    doc_id = request.form.get("doc_id", "")
-    doc = delete_promo_video_doc(doc_id)
-    if not doc:
-        flash("Video not found - baka na-delete na.", "danger")
-        return redirect(url_for("customers.video_playlist_admin"))
-
-    # Best-effort Storage cleanup - a failure here just leaves an orphaned
-    # blob in Storage (harmless, no longer shown anywhere), never blocks
-    # the delete Isesmo actually asked for.
-    try:
-        from firebase_config import bucket, USING_MOCK_DB
-        if not USING_MOCK_DB and bucket is not None and doc.get("storage_path"):
-            bucket.blob(doc["storage_path"]).delete()
-    except Exception as e:
-        print(f"[customers] video_playlist_delete storage cleanup error: {e}")
-
-    # Scrub this filename out of the saved order too, so a deleted video
-    # never leaves a dangling entry in settings (harmless either way since
-    # _list_promo_videos() only ever shows videos that still exist, but
-    # keeps the stored order list from growing stale).
-    filename = doc.get("filename")
-    if filename:
-        save_video_order([f for f in get_video_order() if f != filename])
-
-    flash(f'Na-delete ang "{doc.get("title", "video")}".', "success")
     return redirect(url_for("customers.video_playlist_admin"))
