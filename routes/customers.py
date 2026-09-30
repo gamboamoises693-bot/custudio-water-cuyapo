@@ -1,7 +1,8 @@
 """MODULE 1: Customer Management + Chat Profile."""
 
 import io
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort
+import os
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, current_app
 from auth import login_required, role_required, super_admin_required
 from models import customers as customers_model
 from models import chats as chats_model
@@ -127,15 +128,63 @@ def qr_image(customer_id):
     qr_token, so regenerate_qr_token() takes effect immediately). Encodes the
     full /customer/qr-login/<token> URL so scanning it with any phone camera
     (not just this app) opens straight into the Customer Portal, already
-    logged in - see routes/customer_portal.py's qr_login()."""
+    logged in - see routes/customer_portal.py's qr_login().
+
+    The Custodio Water logo is punched into the center (per owner's
+    request, "lagyan mo ng custodio yung QR, sa gitna yung logo") - uses
+    ERROR_CORRECT_H (30% redundancy), the highest level QR supports, so the
+    code still scans correctly even with a chunk of the middle covered by
+    the logo. Falls back to a plain QR (no crash) if the logo file is
+    missing or Pillow can't open it for any reason."""
     import qrcode
+    from qrcode.constants import ERROR_CORRECT_H
+    from PIL import Image
 
     customer = customers_model.get_customer(customer_id)
     if not customer:
         abort(404)
 
     login_url = url_for("customer_portal.qr_login", token=customer["qr_token"], _external=True)
-    img = qrcode.make(login_url, box_size=10, border=2)
+
+    qr = qrcode.QRCode(error_correction=ERROR_CORRECT_H, box_size=10, border=2)
+    qr.add_data(login_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+
+    # Auto-detect logo extension, same approach as app.py's
+    # inject_globals() - re-uploading the logo as .png/.jpeg/.webp keeps
+    # this working without another code change.
+    logo_path = None
+    for ext in ("jpg", "jpeg", "png", "webp"):
+        candidate = os.path.join(current_app.static_folder, "images", f"logo.{ext}")
+        if os.path.isfile(candidate):
+            logo_path = candidate
+            break
+
+    if logo_path:
+        try:
+            logo = Image.open(logo_path).convert("RGBA")
+            qr_w, qr_h = img.size
+            # ~22% of the QR's width - big enough to actually read the
+            # logo, small enough that ERROR_CORRECT_H's 30% redundancy can
+            # still reconstruct whatever modules it covers.
+            logo_size = int(qr_w * 0.22)
+            logo.thumbnail((logo_size, logo_size), Image.LANCZOS)
+
+            # White padded square behind the logo so it reads cleanly
+            # against the QR's black/white pattern instead of blending in.
+            pad = max(4, int(logo.size[0] * 0.12))
+            box_w, box_h = logo.size[0] + pad * 2, logo.size[1] + pad * 2
+            box = Image.new("RGBA", (box_w, box_h), "white")
+            box.paste(logo, (pad, pad), logo)
+
+            pos = ((qr_w - box_w) // 2, (qr_h - box_h) // 2)
+            img.paste(box, pos, box)
+        except Exception as e:
+            # Never let a bad/missing logo file break QR generation itself
+            # - customer still gets a scannable (plain) QR either way.
+            print(f"[customers] QR logo embed failed ({e}); using plain QR instead.")
+
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
