@@ -27,7 +27,12 @@ from auth import verify_login, login_required
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-insecure-secret-change-me")
-    app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8MB max upload (GCash receipts/photos)
+    # 80MB max upload - was 8MB (fine for GCash receipts/photos), raised to
+    # also cover promo VIDEO uploads from the Video Playlist admin page
+    # (routes/customers.py's video_playlist_upload()). Keep uploaded promo
+    # videos reasonably compressed/short for reliable upload over mobile
+    # data - see that route's docstring for the full reasoning.
+    app.config["MAX_CONTENT_LENGTH"] = 80 * 1024 * 1024
 
     # ---- auth blueprint (login/logout) ----
     auth_bp = Blueprint("auth", __name__)
