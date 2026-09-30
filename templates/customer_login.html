@@ -9,14 +9,31 @@
       <p class="text-sm text-gray-500">Customer Portal - Purok 6 Malineng, Cuyapo N.E.</p>
     </div>
 
-    <!-- Promo Video - self-hiding: shows automatically once static/videos/promo.mp4
-         is uploaded, stays hidden (no broken player) if it isn't there yet. -->
-    <div id="promoVideoWrap" class="hidden bg-black rounded-2xl shadow overflow-hidden mb-4">
-      <video id="promoVideo" class="w-full block" style="aspect-ratio: 16/9;" controls preload="metadata" playsinline>
-        <source src="{{ url_for('static', filename='videos/promo.mp4') }}" type="video/mp4">
+    <!-- Promo Video(s) - server already knows (via promo_videos) which video
+         files actually exist under static/videos/, so this only renders
+         when there's at least one; no broken/empty player before a video
+         is uploaded. When there's more than one, a YouTube-style picker
+         row lets the customer choose which one to watch (see script below). -->
+    {% if promo_videos %}
+    <div id="promoVideoWrap" class="bg-black rounded-2xl shadow overflow-hidden mb-4">
+      <video id="promoVideo" class="w-full block" style="aspect-ratio: 16/9;" controls preload="metadata" playsinline src="{{ promo_videos[0].url }}">
         Hindi supported ng browser mo ang pag-play ng video.
       </video>
+      {% if promo_videos|length > 1 %}
+      <div class="bg-gray-900 px-2 pt-2 pb-2">
+        <p class="text-[10px] text-gray-400 px-1 mb-1.5">🎬 Pumili ng video:</p>
+        <div class="flex gap-2 overflow-x-auto pb-0.5">
+          {% for v in promo_videos %}
+          <button type="button" class="promo-video-choice flex-shrink-0 w-24 rounded-lg overflow-hidden border-2 {{ 'border-aqua-400' if loop.first else 'border-transparent' }}" data-video-url="{{ v.url }}">
+            <video class="w-full h-14 object-cover bg-black block pointer-events-none" preload="metadata" muted playsinline src="{{ v.url }}"></video>
+            <p class="text-[9px] text-white bg-gray-800 px-1 py-0.5 truncate">{{ v.title }}</p>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
     </div>
+    {% endif %}
 
     <!-- Login form: moved above the Omega banner per owner's request, so
          customers see it right after the video, before scrolling past the
@@ -137,28 +154,49 @@
      decode() call - see decodeQrFromCanvas() below). -->
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
-// Promo Video: only reveal the player once static/videos/promo.mp4 actually
-// exists (avoids a broken/empty black box before the video file is uploaded
-// via GitHub). Same pattern as templates/customer_dashboard.html.
+// Promo Video(s): the server already confirmed at least one video file
+// exists (see promo_videos in routes/customer_portal.py), so this block
+// just wires up playback tracking, a safety-net hide if a file somehow
+// 404s anyway (deleted after the page was cached, wrong case on a
+// case-sensitive filesystem, etc), and the YouTube-style picker when
+// there's more than one video. Same pattern as customer_dashboard.html.
 (function () {
   const wrap = document.getElementById('promoVideoWrap');
   const vid = document.getElementById('promoVideo');
-  const src = vid.querySelector('source');
-  function show() { wrap.classList.remove('hidden'); }
-  // Logs WHY it hid (e.g. 404 on promo.mp4) to the browser console so this
-  // is diagnosable from DevTools instead of just "nawawala" with no clue -
+  if (!wrap || !vid) return; // no promo_videos at all - nothing to wire up
+
+  // Logs WHY it hid (e.g. 404) to the browser console so this is
+  // diagnosable from DevTools instead of just "nawawala" with no clue -
   // customers never see this, only whoever opens DevTools while debugging.
   function hide(reason) {
     wrap.classList.add('hidden');
-    console.warn('[promo video] hidden - ' + reason + '. Check that static/videos/promo.mp4 exists on the live server.');
+    console.warn('[promo video] hidden - ' + reason + '. Check the video file(s) under static/videos/ on the live server.');
   }
-  vid.addEventListener('loadedmetadata', show);
-  vid.addEventListener('error', function () { hide('video element error event'); });
-  src.addEventListener('error', function () { hide('source element error event (likely 404 on promo.mp4)'); });
+  vid.addEventListener('error', function () { hide('video element error event (likely a 404/corrupt file)'); });
+
   // Engagement tracking for the System Activity page (Isesmo-only) - how
-  // many times the promo video actually gets played.
+  // many times a promo video actually gets played.
   vid.addEventListener('play', function () {
     fetch('/api/track/video-play', { method: 'POST' }).catch(function () {});
+  });
+
+  // YouTube-style picker: tapping a thumbnail swaps the main player's
+  // source (no page reload) and highlights the chosen one.
+  document.querySelectorAll('.promo-video-choice').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const url = btn.dataset.videoUrl;
+      if (vid.getAttribute('src') === url) return; // already showing this one
+      vid.pause();
+      vid.setAttribute('src', url);
+      vid.load();
+      vid.play().catch(function () { /* autoplay may be blocked - customer can just tap play */ });
+      document.querySelectorAll('.promo-video-choice').forEach(function (b) {
+        b.classList.remove('border-aqua-400');
+        b.classList.add('border-transparent');
+      });
+      btn.classList.remove('border-transparent');
+      btn.classList.add('border-aqua-400');
+    });
   });
 })();
 
