@@ -135,10 +135,35 @@ def qr_image(customer_id):
     ERROR_CORRECT_H (30% redundancy), the highest level QR supports, so the
     code still scans correctly even with a chunk of the middle covered by
     the logo. Falls back to a plain QR (no crash) if the logo file is
-    missing or Pillow can't open it for any reason."""
+    missing or Pillow can't open it for any reason.
+
+    The customer's NAME is also printed as a caption strip below the QR
+    (per owner's follow-up request, "ilagay din pangalan ng Customer") -
+    so a printed/saved copy is self-identifying on its own, without
+    needing the in-app modal's caption text alongside it."""
     import qrcode
     from qrcode.constants import ERROR_CORRECT_H
-    from PIL import Image
+    from PIL import Image, ImageDraw, ImageFont
+
+    # Common truetype font locations across Linux distros (Render's build
+    # image included) - tried in order, first one that actually exists and
+    # loads wins. If NONE of these exist, falls back to Pillow's built-in
+    # bitmap font (always available, just not resizable/as crisp) rather
+    # than crashing the whole QR image.
+    _FONT_CANDIDATES = (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    )
+
+    def _load_font(size):
+        for path in _FONT_CANDIDATES:
+            if os.path.isfile(path):
+                try:
+                    return ImageFont.truetype(path, size)
+                except Exception:
+                    continue
+        return None
 
     customer = customers_model.get_customer(customer_id)
     if not customer:
@@ -184,6 +209,44 @@ def qr_image(customer_id):
             # Never let a bad/missing logo file break QR generation itself
             # - customer still gets a scannable (plain) QR either way.
             print(f"[customers] QR logo embed failed ({e}); using plain QR instead.")
+
+    try:
+        qr_w, qr_h = img.size
+        customer_name = (customer.get("name") or "Customer").strip().upper()
+
+        label_h = max(40, int(qr_w * 0.11))
+        canvas = Image.new("RGB", (qr_w, qr_h + label_h), "white")
+        canvas.paste(img, (0, 0))
+        draw = ImageDraw.Draw(canvas)
+
+        font_size = int(label_h * 0.42)
+        font = _load_font(font_size)
+        if font is not None:
+            bbox = draw.textbbox((0, 0), customer_name, font=font)
+            text_w = bbox[2] - bbox[0]
+            # Shrink the font until a long name fits within the QR's width
+            # (with a little side margin), instead of letting it overflow
+            # or get clipped.
+            while text_w > qr_w - 24 and font_size > 12:
+                font_size -= 2
+                font = _load_font(font_size)
+                bbox = draw.textbbox((0, 0), customer_name, font=font)
+                text_w = bbox[2] - bbox[0]
+        else:
+            font = ImageFont.load_default()
+            bbox = draw.textbbox((0, 0), customer_name, font=font)
+            text_w = bbox[2] - bbox[0]
+
+        text_h = bbox[3] - bbox[1]
+        text_x = max(0, (qr_w - text_w) // 2)
+        text_y = qr_h + (label_h - text_h) // 2 - bbox[1]
+        draw.text((text_x, text_y), customer_name, fill="black", font=font)
+
+        img = canvas
+    except Exception as e:
+        # Same safety net as the logo embed above - worst case, the
+        # customer just gets a QR without the name caption, never a 500.
+        print(f"[customers] QR name label failed ({e}); using QR without name caption.")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
