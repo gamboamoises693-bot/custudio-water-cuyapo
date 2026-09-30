@@ -28,7 +28,7 @@ from models import loyalty
 from models import chats as chats_model
 from models.customers import get_customer, get_customer_by_qr_token
 from models.orders import get_order, list_orders, create_order, confirm_delivery
-from models.activity import record_action, bump_engagement
+from models.activity import record_action, bump_engagement, bump_video_view
 from models.pricing import list_container_types, get_container_type, DEFAULT_CONTAINER_TYPE
 from models.timeutil import format_dt
 import push_notify
@@ -97,7 +97,11 @@ def _list_promo_videos():
     if not found:
         return []
 
-    from models.activity import get_video_order
+    from models.activity import get_video_order, get_video_views
+    views = get_video_views()
+    for info in found.values():
+        info["views"] = views.get(info["filename"], 0)
+
     saved_order = get_video_order()
     out = [found.pop(fname) for fname in saved_order if fname in found]
     out.extend(found[fname] for fname in sorted(found))
@@ -399,8 +403,17 @@ def api_track_video_play():
     those templates' inline scripts). No login needed since the video is
     shown before login too. Public/best-effort - a small over-count from a
     replay or seek is fine, this is a rough engagement number, not a
-    billing figure."""
+    billing figure.
+
+    `filename` (optional, sent by the templates' JS) identifies WHICH video
+    was played, on top of the overall video_plays total - lets Isesmo see
+    per-video view counts on the Video Playlist admin page. Missing/blank
+    filename (e.g. an old cached page from before this was added) just
+    skips the per-video bump, the overall total still counts."""
     bump_engagement("video_plays")
+    filename = request.form.get("filename", "").strip()
+    if filename:
+        bump_video_view(filename)
     return jsonify({"ok": True})
 
 
