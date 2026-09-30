@@ -17,8 +17,10 @@ mixed - logging in as a customer clears any leftover owner/staff session,
 and vice versa (auth.py's login already does the latter).
 """
 
+import os
+import re
 from datetime import datetime, timezone
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, make_response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, make_response, current_app
 
 from firebase_config import db
 from models import customer_auth
@@ -44,6 +46,45 @@ def _can_access(customer_id):
     return _is_owner_or_staff()
 
 
+_VIDEO_EXTS = ("mp4", "webm", "mov", "m4v")
+
+
+def _list_promo_videos():
+    """Auto-detects every promo video file under static/videos/ and returns
+    a simple playlist: [{filename, title, url}, ...], sorted by filename.
+
+    Per owner's request ("parang YouTube na pwede magselect ng video, may
+    marami") - lets Isesmo add/remove/rename promo videos just by
+    uploading/deleting files via GitHub web upload, no code change needed.
+    A display title is derived from the filename (e.g. "bagong-promo_2.mp4"
+    -> "Bagong Promo 2") so a reasonably-named file already looks fine in
+    the picker without extra typing.
+
+    Returns [] if static/videos/ doesn't exist yet (no video uploaded at
+    all) - templates use this to hide the whole video section, same
+    self-hiding behavior as before, just decided server-side now instead
+    of only via a client-side 404 check."""
+    videos_dir = os.path.join(current_app.static_folder, "videos")
+    if not os.path.isdir(videos_dir):
+        return []
+
+    out = []
+    for fname in sorted(os.listdir(videos_dir)):
+        if "." not in fname:
+            continue
+        ext = fname.rsplit(".", 1)[1].lower()
+        if ext not in _VIDEO_EXTS:
+            continue
+        stem = fname.rsplit(".", 1)[0]
+        title = re.sub(r"[-_]+", " ", stem).strip().title() or "Video"
+        out.append({
+            "filename": fname,
+            "title": title,
+            "url": url_for("static", filename=f"videos/{fname}"),
+        })
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Pages
 # ---------------------------------------------------------------------------
@@ -52,7 +93,7 @@ def _can_access(customer_id):
 def login_page():
     if session.get("customer_id"):
         return redirect(url_for("customer_portal.dashboard_page", customer_id=session["customer_id"]))
-    return render_template("customer_login.html")
+    return render_template("customer_login.html", promo_videos=_list_promo_videos())
 
 
 @customer_portal_bp.route("/customer/qr-login/<token>")
@@ -121,6 +162,7 @@ def dashboard_page(customer_id):
         customer=customer,
         vapid_public_key=push_notify.VAPID_PUBLIC_KEY,
         push_enabled=push_notify.PUSH_ENABLED,
+        promo_videos=_list_promo_videos(),
     )
 
 
