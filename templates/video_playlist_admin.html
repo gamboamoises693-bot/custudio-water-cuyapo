@@ -18,11 +18,35 @@
   {% endif %}
 {% endwith %}
 
+<!-- Direct upload - goes straight to Firebase Storage (see
+     routes/customers.py's video_playlist_upload()), no GitHub needed
+     anymore. Kept as its own card above the list so it's obvious this is
+     an ALTERNATIVE to the GitHub-upload files below, not a replacement -
+     both keep showing up in the same list either way. -->
+<div class="bg-white rounded-2xl shadow p-4 mb-4">
+  <h2 class="font-semibold text-gray-700 mb-3">⬆️ Mag-upload ng Bagong Video</h2>
+  <form method="POST" action="{{ url_for('customers.video_playlist_upload') }}" enctype="multipart/form-data" class="space-y-3">
+    <div>
+      <label class="text-xs font-semibold text-gray-600">Video File (.mp4, .webm, .mov, .m4v)</label>
+      <input type="file" name="video_file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1 bg-white">
+    </div>
+    <div>
+      <label class="text-xs font-semibold text-gray-600">Title (optional - kung wala, kukunin sa filename)</label>
+      <input type="text" name="title" placeholder="Hal. Bagong Promo 2026" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-1">
+    </div>
+    <button type="submit" class="w-full bg-aqua-500 hover:bg-aqua-600 text-white rounded-lg py-2.5 text-sm font-semibold">⬆️ I-upload</button>
+  </form>
+  <p class="text-[11px] text-gray-400 mt-2">
+    Tip: i-compress/paikliin muna ang video bago i-upload (mas mabilis at mas reliable sa mobile data).
+    Kung na-time-out o hindi na-upload, puwede pa ring gamitin ang lumang paraan - GitHub web upload papunta sa <code class="bg-gray-100 px-1 rounded">static/videos/</code>.
+  </p>
+</div>
+
 <div class="bg-white rounded-2xl shadow p-4">
   {% if not videos %}
   <p class="text-sm text-gray-400">
-    Wala pang video na naka-upload sa <code class="bg-gray-100 px-1 rounded">static/videos/</code>.
-    Mag-upload muna ng .mp4/.webm/.mov/.m4v file doon via GitHub, tapos balikan ang page na ito para i-arrange.
+    Wala pang promo video. Mag-upload gamit ang form sa itaas, o mag-upload ng .mp4/.webm/.mov/.m4v file sa
+    <code class="bg-gray-100 px-1 rounded">static/videos/</code> via GitHub, tapos balikan ang page na ito para i-arrange.
   </p>
   {% else %}
   <div class="space-y-3">
@@ -41,7 +65,14 @@
           <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-aqua-500 text-white align-middle">📌 Pinned / Unang Play</span>
           {% endif %}
         </p>
-        <p class="text-xs text-gray-400 truncate">{{ v.filename }} · 👁️ {{ v.views }} view{{ 's' if v.views != 1 }}</p>
+        <p class="text-xs text-gray-400 truncate">
+          👁️ {{ v.views }} view{{ 's' if v.views != 1 }}
+          {% if v.source == 'upload' %}
+          · <span class="text-sky-500">☁️ Uploaded dito</span>
+          {% else %}
+          · <span class="text-gray-400">🐙 GitHub file ({{ v.filename }})</span>
+          {% endif %}
+        </p>
       </div>
 
       <div class="flex items-center gap-1 shrink-0">
@@ -61,6 +92,12 @@
           <input type="hidden" name="direction" value="down">
           <button type="submit" class="text-xs font-semibold px-2 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30" {{ 'disabled' if loop.last }} title="Bumaba">⬇️</button>
         </form>
+        {% if v.source == 'upload' %}
+        <form method="POST" action="{{ url_for('customers.video_playlist_delete') }}" onsubmit="return confirm('Sigurado ka bang i-delete ang video na \'{{ v.title }}\'? Hindi na ito mababawi.');">
+          <input type="hidden" name="doc_id" value="{{ v.doc_id }}">
+          <button type="submit" class="text-xs font-semibold px-2 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100" title="I-delete ang video">🗑️</button>
+        </form>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
