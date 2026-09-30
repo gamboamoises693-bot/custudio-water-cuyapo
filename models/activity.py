@@ -129,4 +129,5 @@ def get_engagement():
     return {
         "video_plays": data.get("video_plays", 0),
         "omega_link_clicks": data.get("omega_link_clicks", 0),
+        "omega_fb_clicks": data.get("omega_fb_clicks", 0),
     }
