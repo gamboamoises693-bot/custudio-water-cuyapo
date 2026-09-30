@@ -50,48 +50,67 @@ _VIDEO_EXTS = ("mp4", "webm", "mov", "m4v")
 
 
 def _list_promo_videos():
-    """Auto-detects every promo video file under static/videos/ and returns
-    a playlist: [{filename, title, url}, ...], ordered per Isesmo's saved
-    preference (see below) - entry [0] is always what auto-plays by default
-    on both the Customer Login page and Customer Dashboard.
+    """Returns the full promo-video playlist: [{filename, title, url,
+    views, source, ...}, ...], ordered per Isesmo's saved preference (see
+    ORDERING below) - entry [0] is always what auto-plays by default on
+    both the Customer Login page and Customer Dashboard.
 
-    Per owner's request ("parang YouTube na pwede magselect ng video, may
-    marami") - lets Isesmo add/remove/rename promo videos just by
-    uploading/deleting files via GitHub web upload, no code change needed.
-    A display title is derived from the filename (e.g. "bagong-promo_2.mp4"
-    -> "Bagong Promo 2") so a reasonably-named file already looks fine in
-    the picker without extra typing.
+    TWO SOURCES, merged into one list:
+    1. "file" - video files sitting under static/videos/, added the
+       original way (GitHub web upload, no code change needed). A display
+       title is derived from the filename (e.g. "bagong-promo_2.mp4" ->
+       "Bagong Promo 2") so a reasonably-named file already looks fine in
+       the picker without extra typing.
+    2. "upload" - videos Isesmo uploaded DIRECTLY from the Video Playlist
+       admin page (routes/customers.py's video_playlist_upload()), stored
+       in Firebase Storage with a small Firestore record (see
+       models/promo_videos.py - and its module docstring for why these
+       are NOT saved to static/videos/ on the server instead).
+    Both keep working side by side - nothing uploaded the old way stops
+    working just because the new upload button exists.
 
-    ORDERING: Isesmo can pin/reorder videos on the Video Playlist admin
-    page (routes/customers.py's video_playlist_admin(), Isesmo-only), which
-    saves a plain list of filenames via models.activity.save_video_order().
-    Files that appear in that saved order come first, in that exact order
-    (so "pinning" a video = moving it to position 0 there). Any video file
-    he hasn't arranged yet (e.g. a brand-new upload) falls in AFTER those,
-    sorted alphabetically, so a new file never silently disappears from the
-    picker just because it's not in the saved order yet.
+    ORDERING: Isesmo can pin/reorder videos (from either source) on the
+    Video Playlist admin page, which saves a plain list of filenames via
+    models.activity.save_video_order(). Files that appear in that saved
+    order come first, in that exact order (so "pinning" a video = moving
+    it to position 0 there). Any video he hasn't arranged yet (e.g. a
+    brand-new upload) falls in AFTER those, sorted alphabetically, so a
+    new video never silently disappears from the picker just because it's
+    not in the saved order yet.
 
-    Returns [] if static/videos/ doesn't exist yet (no video uploaded at
-    all) - templates use this to hide the whole video section, same
-    self-hiding behavior as before, just decided server-side now instead
-    of only via a client-side 404 check."""
-    videos_dir = os.path.join(current_app.static_folder, "videos")
-    if not os.path.isdir(videos_dir):
-        return []
-
+    Returns [] if there are no videos from either source - templates use
+    this to hide the whole video section, same self-hiding behavior as
+    before."""
     found = {}
-    for fname in sorted(os.listdir(videos_dir)):
-        if "." not in fname:
+
+    videos_dir = os.path.join(current_app.static_folder, "videos")
+    if os.path.isdir(videos_dir):
+        for fname in sorted(os.listdir(videos_dir)):
+            if "." not in fname:
+                continue
+            ext = fname.rsplit(".", 1)[1].lower()
+            if ext not in _VIDEO_EXTS:
+                continue
+            stem = fname.rsplit(".", 1)[0]
+            title = re.sub(r"[-_]+", " ", stem).strip().title() or "Video"
+            found[fname] = {
+                "filename": fname,
+                "title": title,
+                "url": url_for("static", filename=f"videos/{fname}"),
+                "source": "file",
+            }
+
+    from models.promo_videos import list_promo_video_docs
+    for doc in list_promo_video_docs():
+        fname = doc.get("filename")
+        if not fname:
             continue
-        ext = fname.rsplit(".", 1)[1].lower()
-        if ext not in _VIDEO_EXTS:
-            continue
-        stem = fname.rsplit(".", 1)[0]
-        title = re.sub(r"[-_]+", " ", stem).strip().title() or "Video"
         found[fname] = {
             "filename": fname,
-            "title": title,
-            "url": url_for("static", filename=f"videos/{fname}"),
+            "title": doc.get("title") or "Video",
+            "url": doc.get("url"),
+            "source": "upload",
+            "doc_id": doc.get("id"),
         }
 
     if not found:
