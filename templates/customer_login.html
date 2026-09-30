@@ -16,7 +16,7 @@
          row lets the customer choose which one to watch (see script below). -->
     {% if promo_videos %}
     <div id="promoVideoWrap" class="bg-black rounded-2xl shadow overflow-hidden mb-4">
-      <video id="promoVideo" class="w-full block" style="aspect-ratio: 16/9;" controls preload="metadata" playsinline src="{{ promo_videos[0].url }}">
+      <video id="promoVideo" class="w-full block" style="aspect-ratio: 16/9;" controls preload="metadata" playsinline src="{{ promo_videos[0].url }}" data-filename="{{ promo_videos[0].filename }}">
         Hindi supported ng browser mo ang pag-play ng video.
       </video>
       {% if promo_videos|length > 1 %}
@@ -24,7 +24,7 @@
         <p class="text-[10px] text-gray-400 px-1 mb-1.5">🎬 Pumili ng video:</p>
         <div class="flex gap-2 overflow-x-auto pb-0.5">
           {% for v in promo_videos %}
-          <button type="button" class="promo-video-choice flex-shrink-0 w-24 rounded-lg overflow-hidden border-2 {{ 'border-aqua-400' if loop.first else 'border-transparent' }}" data-video-url="{{ v.url }}">
+          <button type="button" class="promo-video-choice flex-shrink-0 w-24 rounded-lg overflow-hidden border-2 {{ 'border-aqua-400' if loop.first else 'border-transparent' }}" data-video-url="{{ v.url }}" data-video-filename="{{ v.filename }}">
             <video class="w-full h-14 object-cover bg-black block pointer-events-none" preload="metadata" muted playsinline src="{{ v.url }}"></video>
             <p class="text-[9px] text-white bg-gray-800 px-1 py-0.5 truncate">{{ v.title }}</p>
           </button>
@@ -185,10 +185,15 @@
   }
   vid.addEventListener('error', function () { hide('video element error event (likely a 404/corrupt file)'); });
 
-  // Engagement tracking for the System Activity page (Isesmo-only) - how
-  // many times a promo video actually gets played.
+  // Engagement tracking for the System Activity / Video Playlist admin
+  // pages (Isesmo-only) - how many times a promo video actually gets
+  // played, both a running total (video_plays) AND per-video (so Isesmo
+  // can see WHICH video customers actually watch, not just how many plays
+  // overall). vid.dataset.filename always points at whichever video is
+  // currently loaded - kept in sync by the picker click handler below.
   vid.addEventListener('play', function () {
-    fetch('/api/track/video-play', { method: 'POST' }).catch(function () {});
+    const body = new URLSearchParams({ filename: vid.dataset.filename || '' });
+    fetch('/api/track/video-play', { method: 'POST', body: body }).catch(function () {});
   });
 
   // YouTube-style picker: tapping a thumbnail swaps the main player's
@@ -199,6 +204,7 @@
       if (vid.getAttribute('src') === url) return; // already showing this one
       vid.pause();
       vid.setAttribute('src', url);
+      vid.dataset.filename = btn.dataset.videoFilename || '';
       vid.load();
       vid.play().catch(function () { /* autoplay may be blocked - customer can just tap play */ });
       document.querySelectorAll('.promo-video-choice').forEach(function (b) {
