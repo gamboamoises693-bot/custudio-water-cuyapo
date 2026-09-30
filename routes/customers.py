@@ -362,3 +362,63 @@ def activity_log():
         role_filter=role_filter,
         role_counts=role_counts,
     )
+
+
+@customers_bp.route("/videos")
+@login_required
+@super_admin_required
+def video_playlist_admin():
+    """Isesmo-only admin page: pin/reorder the promo videos shown on the
+    Customer Login page and Customer Dashboard (routes/customer_portal.py's
+    _list_promo_videos()). Whichever video ends up FIRST in this list is
+    the one that auto-plays by default ("laging una ipapplay ang na-pin") -
+    so pinning is just a shortcut for moving a video straight to the top;
+    there's no separate pin flag, one ordering covers both requests."""
+    from routes.customer_portal import _list_promo_videos
+    videos = _list_promo_videos()
+    return render_template("video_playlist_admin.html", videos=videos)
+
+
+@customers_bp.route("/videos/pin", methods=["POST"])
+@login_required
+@super_admin_required
+def video_playlist_pin():
+    """Quick-pin: moves one video straight to position 0 (always plays
+    first) - faster than tapping "Move Up" repeatedly for a video that's
+    currently near the bottom of a long list."""
+    from routes.customer_portal import _list_promo_videos
+    from models.activity import save_video_order
+
+    filename = request.form.get("filename", "")
+    order = [v["filename"] for v in _list_promo_videos()]
+    if filename in order:
+        order.remove(filename)
+        order.insert(0, filename)
+        save_video_order(order)
+        flash(f'Na-pin ang "{filename}" - ito na ang unang ipapplay sa customer login/dashboard.', "success")
+    else:
+        flash("Video not found.", "danger")
+    return redirect(url_for("customers.video_playlist_admin"))
+
+
+@customers_bp.route("/videos/move", methods=["POST"])
+@login_required
+@super_admin_required
+def video_playlist_move():
+    """Swaps one video with its neighbor above/below - simple, reliable,
+    zero-JS reordering (works fine on mobile, no drag-and-drop library
+    needed), matching this app's existing plain-link/plain-form UI style."""
+    from routes.customer_portal import _list_promo_videos
+    from models.activity import save_video_order
+
+    filename = request.form.get("filename", "")
+    direction = request.form.get("direction", "")
+    order = [v["filename"] for v in _list_promo_videos()]
+
+    if filename in order and direction in ("up", "down"):
+        idx = order.index(filename)
+        swap_idx = idx - 1 if direction == "up" else idx + 1
+        if 0 <= swap_idx < len(order):
+            order[idx], order[swap_idx] = order[swap_idx], order[idx]
+            save_video_order(order)
+    return redirect(url_for("customers.video_playlist_admin"))

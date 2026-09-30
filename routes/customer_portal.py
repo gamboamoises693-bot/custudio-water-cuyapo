@@ -51,7 +51,9 @@ _VIDEO_EXTS = ("mp4", "webm", "mov", "m4v")
 
 def _list_promo_videos():
     """Auto-detects every promo video file under static/videos/ and returns
-    a simple playlist: [{filename, title, url}, ...], sorted by filename.
+    a playlist: [{filename, title, url}, ...], ordered per Isesmo's saved
+    preference (see below) - entry [0] is always what auto-plays by default
+    on both the Customer Login page and Customer Dashboard.
 
     Per owner's request ("parang YouTube na pwede magselect ng video, may
     marami") - lets Isesmo add/remove/rename promo videos just by
@@ -59,6 +61,15 @@ def _list_promo_videos():
     A display title is derived from the filename (e.g. "bagong-promo_2.mp4"
     -> "Bagong Promo 2") so a reasonably-named file already looks fine in
     the picker without extra typing.
+
+    ORDERING: Isesmo can pin/reorder videos on the Video Playlist admin
+    page (routes/customers.py's video_playlist_admin(), Isesmo-only), which
+    saves a plain list of filenames via models.activity.save_video_order().
+    Files that appear in that saved order come first, in that exact order
+    (so "pinning" a video = moving it to position 0 there). Any video file
+    he hasn't arranged yet (e.g. a brand-new upload) falls in AFTER those,
+    sorted alphabetically, so a new file never silently disappears from the
+    picker just because it's not in the saved order yet.
 
     Returns [] if static/videos/ doesn't exist yet (no video uploaded at
     all) - templates use this to hide the whole video section, same
@@ -68,7 +79,7 @@ def _list_promo_videos():
     if not os.path.isdir(videos_dir):
         return []
 
-    out = []
+    found = {}
     for fname in sorted(os.listdir(videos_dir)):
         if "." not in fname:
             continue
@@ -77,11 +88,19 @@ def _list_promo_videos():
             continue
         stem = fname.rsplit(".", 1)[0]
         title = re.sub(r"[-_]+", " ", stem).strip().title() or "Video"
-        out.append({
+        found[fname] = {
             "filename": fname,
             "title": title,
             "url": url_for("static", filename=f"videos/{fname}"),
-        })
+        }
+
+    if not found:
+        return []
+
+    from models.activity import get_video_order
+    saved_order = get_video_order()
+    out = [found.pop(fname) for fname in saved_order if fname in found]
+    out.extend(found[fname] for fname in sorted(found))
     return out
 
 
