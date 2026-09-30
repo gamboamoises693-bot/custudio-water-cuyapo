@@ -393,6 +393,17 @@ def api_track_omega_click():
     return jsonify({"ok": True})
 
 
+@customer_portal_bp.route("/api/track/omega-fb-click", methods=["POST"])
+def api_track_omega_fb_click():
+    """Counts a tap of the OMEGA PURIFIED ICE banner's Facebook Page link
+    (per owner's request, "maglagay ng page link sa banner ... dederesto sa
+    omega page message") - separate counter from the main
+    omega_link_clicks (which is for the Omega Ice ordering portal link),
+    so Isesmo can see which of the two CTAs customers actually use more."""
+    bump_engagement("omega_fb_clicks")
+    return jsonify({"ok": True})
+
+
 @customer_portal_bp.route("/api/customer/<customer_id>/change_password", methods=["POST"])
 @customer_auth.customer_login_required
 def api_change_password(customer_id):
