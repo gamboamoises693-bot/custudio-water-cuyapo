@@ -4,8 +4,8 @@
 <h1 class="text-2xl font-bold text-gray-800 mb-1">Customer Portal Activity</h1>
 <p class="text-sm text-gray-500 mb-6">Login attempts, aksyon ng customers, aksyon ng staff/owner sa buong system, at engagement sa Customer UI.</p>
 
-<!-- Customer-UI Engagement (video plays / Omega link clicks) -->
-<div class="grid grid-cols-2 gap-4 mb-6">
+<!-- Customer-UI Engagement (video plays / Omega link clicks / Omega FB clicks) -->
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
   <div class="bg-white rounded-2xl shadow p-5">
     <p class="text-xs text-gray-500 uppercase tracking-wide">🎬 Video Plays (Customer UI)</p>
     <p class="text-2xl font-bold text-aqua-700 mt-1">{{ engagement.video_plays }}</p>
@@ -14,22 +14,49 @@
     <p class="text-xs text-gray-500 uppercase tracking-wide">🔗 Omega Ice Link Clicks</p>
     <p class="text-2xl font-bold text-fuchsia-600 mt-1">{{ engagement.omega_link_clicks }}</p>
   </div>
+  <div class="bg-white rounded-2xl shadow p-5">
+    <p class="text-xs text-gray-500 uppercase tracking-wide">💬 Omega FB Page Clicks</p>
+    <p class="text-2xl font-bold text-sky-600 mt-1">{{ engagement.omega_fb_clicks }}</p>
+  </div>
 </div>
 
-<!-- System Activity Log (staff/owner actions - orders, expenses, accounts) -->
+<!-- System Activity Log (staff/owner actions - orders, expenses, accounts).
+     Filter tabs let Isesmo see Owner-only or Staff-only activity separate
+     from his own (Developer) actions - each tab is a plain link with a
+     ?role= query param, so it works with zero JS (reliable on mobile). -->
 <div class="bg-white rounded-2xl shadow p-4 mb-6">
   <h2 class="font-semibold text-gray-700 mb-3">🔔 System Activity (lahat ng aksyon sa app)</h2>
+
+  <div class="flex flex-wrap gap-2 mb-3">
+    {% set tabs = [('all', 'Lahat'), ('owner', 'Owner'), ('staff', 'Staff'), ('developer', 'Developer'), ('customer', 'Customer')] %}
+    {% for tab_value, tab_label in tabs %}
+    <a href="{{ url_for('customers.activity_log', role=tab_value) }}"
+       class="text-xs font-semibold px-3 py-1.5 rounded-full {{ 'bg-aqua-500 text-white' if role_filter == tab_value else 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+      {{ tab_label }} ({{ role_counts.get(tab_value, 0) }})
+    </a>
+    {% endfor %}
+  </div>
+
   <div class="space-y-2 max-h-[28rem] overflow-y-auto">
+    {% set role_badge = {'developer': ('bg-purple-100 text-purple-700', 'Developer'), 'owner': ('bg-aqua-100 text-aqua-700', 'Owner'), 'staff': ('bg-yellow-100 text-yellow-700', 'Staff'), 'customer': ('bg-green-100 text-green-700', 'Customer')} %}
     {% for a in system_activity %}
     <div class="border-b border-gray-50 pb-2 text-sm">
       <div class="flex items-center justify-between gap-2">
-        <p class="font-medium text-gray-800">{{ a.actor_name }} - {{ a.action }}</p>
+        <p class="font-medium text-gray-800">
+          {{ a.actor_name }} - {{ a.action }}
+          {% if a.actor_role and role_badge.get(a.actor_role) %}
+          <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded-full {{ role_badge[a.actor_role][0] }} align-middle">{{ role_badge[a.actor_role][1] }}</span>
+          {% endif %}
+        </p>
         <span class="text-[10px] text-gray-400 shrink-0">{{ a.display_date }}</span>
       </div>
       {% if a.details %}<p class="text-xs text-gray-400">{{ a.details }}</p>{% endif %}
     </div>
     {% else %}
-    <p class="text-sm text-gray-400">Wala pang system activity.</p>
+    <p class="text-sm text-gray-400">
+      {% if role_filter == 'all' %}Wala pang system activity.
+      {% else %}Wala pang activity mula sa {{ role_filter }}.{% endif %}
+    </p>
     {% endfor %}
   </div>
 </div>
