@@ -121,6 +121,16 @@ def _list_promo_videos():
 def login_page():
     if session.get("customer_id"):
         return redirect(url_for("customer_portal.dashboard_page", customer_id=session["customer_id"]))
+    # Engagement tracking for the Customer Portal Activity page (Isesmo-
+    # only) - counts a "portal open" every time someone actually LANDS on
+    # this page WITHOUT being logged in yet (i.e. this line only runs when
+    # the redirect above did NOT fire). Separate from login_logs (which
+    # only records an actual login ATTEMPT, success or fail) - this answers
+    # "ilang beses binuksan ang portal" even by people who never typed
+    # anything. Public/best-effort, same rough-engagement-number spirit as
+    # video_plays/omega_link_clicks - a page refresh counts as a new open,
+    # this isn't meant to be a precise unique-visitor count.
+    bump_engagement("portal_opens")
     return render_template("customer_login.html", promo_videos=_list_promo_videos())
 
 
