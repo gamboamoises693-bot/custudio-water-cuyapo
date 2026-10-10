@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#ffffff",
-  "theme_color": "#00a8e8",
+  "background_color": "#F2F5FB",
+  "theme_color": "#0A6CFF",
   "icons": [
     { "src": "/static/images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/static/images/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
