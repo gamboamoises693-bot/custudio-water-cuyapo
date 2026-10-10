@@ -6,7 +6,7 @@
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #99dff7;
+  background-color: #ADCDFF;
   border-radius: 4px;
 }
 
@@ -40,3 +40,149 @@ input, select, textarea, button {
 .flex > * {
   min-width: 0;
 }
+
+
+/* =====================================================================
+   MG-CASH design system (GCash-style blue) applied to Custodio Water.
+   Loaded BEFORE Tailwind's runtime <style>, so selectors are prefixed
+   with `body` to win on specificity without needing !important.
+   ===================================================================== */
+:root {
+  --mg-blue: #0A6CFF;
+  --mg-blue-dark: #0857CC;
+  --mg-navy: #041B4D;
+  --mg-bg: #F2F5FB;
+  --mg-muted: #6B7A99;
+  --mg-radius: 20px;
+  --mg-radius-sm: 12px;
+  --mg-shadow: 0 4px 18px rgba(10, 108, 255, 0.08);
+}
+
+body {
+  font-family: 'Poppins', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--mg-bg);
+  color: #1b2540;
+}
+
+/* --- Navbar: dark navy -> blue gradient, teal corner glow, glass sheen --- */
+.navbar-mg {
+  position: sticky;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(0, 220, 200, 0.35) 0%, rgba(0, 220, 200, 0) 45%),
+    linear-gradient(135deg, var(--mg-navy) 0%, #0A4FD6 60%, var(--mg-blue) 100%);
+  box-shadow: 0 4px 16px rgba(4, 27, 77, 0.25);
+}
+.navbar-mg::after {            /* glass sheen */
+  content: "";
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 60%);
+}
+.navbar-mg > div { position: relative; z-index: 1; }
+.menu-btn {
+  color: #fff; font-size: 1.4rem; line-height: 1;
+  width: 40px; height: 40px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.menu-btn:active { background: rgba(255, 255, 255, 0.28); }
+
+/* Hamburger dropdown (white card) - full width on phone, floating on desktop */
+.menu-panel {
+  position: absolute; left: 0; right: 0; top: 100%;
+  background: #fff; z-index: 2;
+  border-radius: 0 0 var(--mg-radius) var(--mg-radius);
+  box-shadow: 0 12px 28px rgba(4, 27, 77, 0.18);
+  max-height: 80vh; overflow-y: auto;
+}
+@media (min-width: 768px) {
+  .menu-panel {
+    left: auto; right: 24px; width: 320px;
+    border-radius: var(--mg-radius);
+    margin-top: 6px;
+  }
+}
+.nav-link.active { background-color: #EAF2FF; color: var(--mg-blue-dark); font-weight: 600; }
+.nav-link:hover { background-color: #F2F7FF; }
+
+.bottom-nav {
+  background: #fff;
+  border-top: 1px solid #E3E8F2;
+  box-shadow: 0 -4px 16px rgba(10, 108, 255, 0.08);
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+/* --- Cards: 20px radius, soft blue shadow, no hard border --- */
+body .rounded-2xl,
+body .rounded-xl.bg-white {
+  border-radius: var(--mg-radius);
+}
+body .bg-white.rounded-2xl,
+body .bg-white.rounded-xl {
+  border: 0;
+  box-shadow: var(--mg-shadow);
+}
+
+/* --- Buttons: pill + blue gradient (same as .btn-mgcash) --- */
+.btn-mg,
+body button.bg-aqua-500, body a.bg-aqua-500,
+body button.bg-aqua-600, body a.bg-aqua-600 {
+  background: linear-gradient(135deg, #0A6CFF 0%, #0857CC 100%);
+  color: #fff;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 0;
+  box-shadow: 0 4px 12px rgba(10, 108, 255, 0.28);
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+.btn-mg:active,
+body button.bg-aqua-500:active, body a.bg-aqua-500:active {
+  transform: scale(0.98);
+}
+body .hover\:bg-aqua-600:hover { background: linear-gradient(135deg, #0857CC 0%, #06429A 100%); }
+
+/* Outline pill buttons (MG .mg-pill-btn) for light/secondary actions */
+body button.bg-aqua-50, body a.bg-aqua-50,
+body button.bg-aqua-100, body a.bg-aqua-100 {
+  border-radius: 999px;
+}
+
+/* --- Inputs: soft rounded, blue focus ring --- */
+body input[type="text"], body input[type="email"], body input[type="password"],
+body input[type="tel"], body input[type="number"], body input[type="date"],
+body input[type="search"], body select, body textarea {
+  border-radius: var(--mg-radius-sm);
+  border-color: #D8E0EF;
+}
+body input:focus, body select:focus, body textarea:focus {
+  outline: none;
+  border-color: var(--mg-blue);
+  box-shadow: 0 0 0 3px rgba(10, 108, 255, 0.18);
+}
+
+/* --- Status badges: pill shape --- */
+body span.rounded, body span.rounded-md { border-radius: 999px; }
+
+/* --- Tables: light header, rounded container --- */
+body table thead th {
+  background: #F2F7FF;
+  color: var(--mg-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+body table tbody tr:hover { background: #F8FAFF; }
+
+/* --- Headings --- */
+body h1, body h2 { color: #0b2a66; }
+
+/* --- Reusable MG components for new/updated pages --- */
+.mg-hero {
+  border-radius: var(--mg-radius);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(0, 220, 200, 0.30) 0%, rgba(0, 220, 200, 0) 45%),
+    linear-gradient(135deg, var(--mg-navy) 0%, #0A4FD6 60%, var(--mg-blue) 100%);
+  color: #fff; padding: 20px;
+  box-shadow: 0 8px 22px rgba(10, 108, 255, 0.28);
+}
+.mg-order-card { border-left: 5px solid var(--mg-blue); }
