@@ -226,3 +226,15 @@ body h1, body h2 { color: #0b2a66; }
 .mg-btn-primary:active { transform: scale(0.98); }
 .mg-link { display: block; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--mg-blue); padding: 12px 4px 0; }
 .mg-auth-foot { text-align: center; font-size: 0.72rem; color: var(--mg-muted); margin-top: 20px; line-height: 1.6; }
+
+
+/* Phone polish (Android 6"+ : 360-430px wide). Larger tap targets, 16px inputs
+   (stops browsers auto-zooming on focus), safe-area padding, no sideways scroll. */
+@media (max-width: 767px) {
+  body input, body select, body textarea { font-size: 16px; }
+  body button, body a.bg-aqua-500, body a.bg-aqua-600 { min-height: 40px; }
+  main { padding-left: 14px; padding-right: 14px; }
+  body table { font-size: 0.8rem; }
+  .menu-panel a, .menu-panel button { min-height: 44px; }
+}
+main, .mg-auth { overflow-wrap: anywhere; }
