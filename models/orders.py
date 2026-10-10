@@ -344,14 +344,28 @@ def delete_order(order_id):
     """Hard delete - Owner or super-admin only (see routes/orders.py's
     @owner_or_super_admin_required delete()). Removes the order AND any
     linked delivery record so it doesn't leave orphaned rows in
-    Reports/Sales totals. Does NOT reverse loyalty gallons or utang that
-    were already applied when the order was delivered - undo those by
-    hand first if the order being deleted was already paid/utang.
+    Reports/Sales totals. Reverses the loyalty gallons that order earned (if the customer had
+    confirmed receipt). Does NOT reverse utang - fix that by hand first if the
+    order being deleted was still marked utang.
 
     Deletes each matched delivery by its own id (db.collection(...).document(id))
     rather than the snapshot's `.reference`, since the local mock Firestore
     (firebase_config.py) doesn't implement that attribute on query results -
     this way delete works identically against the mock and the real client."""
+    from models import loyalty
+
+    # If this order already EARNED promo gallons (customer confirmed receipt),
+    # take those gallons back - otherwise deleting orders leaves the customer's
+    # promo card full of gallons from orders that no longer exist.
+    order = get_order(order_id)
+    if order and order.get("customer_confirmed") and order.get("customer_id"):
+        try:
+            delivered_qty = order.get("delivered_qty") or order.get("containers_qty") or 0
+            gallons_per_unit = float(order.get("gallons_total", 0) or 0) / float(order.get("containers_qty") or 1)
+            loyalty.remove_gallons(order["customer_id"], gallons_per_unit * int(delivered_qty), order_id=order_id)
+        except Exception:
+            pass  # never block the delete itself because of a loyalty hiccup
+
     db.collection(ORDERS).document(order_id).delete()
     for d in db.collection(DELIVERIES).where("order_id", "==", order_id).stream():
         db.collection(DELIVERIES).document(d.id).delete()

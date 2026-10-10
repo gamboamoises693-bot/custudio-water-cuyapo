@@ -151,6 +151,68 @@ def add_gallons(customer_id, gallons, order_id=None):
     }
 
 
+def remove_gallons(customer_id, gallons, order_id=None):
+    """Reverses add_gallons() - used when an order that ALREADY earned
+    loyalty gallons (customer confirmed receipt) gets deleted, so the
+    customer's promo card doesn't keep gallons from an order that no longer
+    exists. If subtracting would go below zero, it "un-unlocks" earlier
+    rewards (takes back 5 free gallons per 100 gallons borrowed) as long as
+    the customer still has that free credit; otherwise clamps at 0 - it
+    never goes negative. Never raises for a missing customer."""
+    gallons = float(gallons or 0)
+    if gallons <= 0:
+        return None
+    customer = get_customer(customer_id)
+    if not customer:
+        return None
+
+    total = float(customer.get("loyalty_gallons", 0) or 0) - gallons
+    free = float(customer.get("loyalty_free_gallons", 0) or 0)
+    while total < 0 and free >= FREE_GALLONS_PER_REWARD:
+        total += GALLONS_PER_REWARD
+        free -= FREE_GALLONS_PER_REWARD
+    total = max(total, 0.0)
+
+    update_customer(customer_id, {
+        "loyalty_gallons": total,
+        "loyalty_free_gallons": free,
+        "loyalty_updated_at": server_timestamp(),
+    })
+    log_loyalty_event(customer_id, "reversed", gallons,
+                      note="Na-delete ang order - ibinawas ang gallons", order_id=order_id)
+    return {"gallons": total, "free_gallons": free}
+
+
+def reset_loyalty(customer_id, reason="Na-reset ng owner"):
+    """Wipes ONE customer's promo card (gallons + free-gallon credit) back
+    to zero. The loyalty_log history is kept (a "reset" line is added) so
+    there is still an audit trail of what happened."""
+    customer = get_customer(customer_id)
+    if not customer:
+        return False
+    old_gallons = float(customer.get("loyalty_gallons", 0) or 0)
+    update_customer(customer_id, {
+        "loyalty_gallons": 0.0,
+        "loyalty_free_gallons": 0.0,
+        "loyalty_updated_at": server_timestamp(),
+    })
+    log_loyalty_event(customer_id, "reset", old_gallons, note=reason)
+    return True
+
+
+def reset_all_loyalty(reason="Na-reset ng owner (lahat)"):
+    """Resets EVERY customer's promo card that currently has any gallons or
+    free credit. Returns how many customers were reset."""
+    from models.customers import list_customers
+
+    count = 0
+    for c in list_customers():
+        if float(c.get("loyalty_gallons", 0) or 0) > 0 or float(c.get("loyalty_free_gallons", 0) or 0) > 0:
+            if reset_loyalty(c["id"], reason=reason):
+                count += 1
+    return count
+
+
 def apply_free_gallons(customer_id, order_gallons, order_amount, order_id=None):
     """Called when a NEW order is placed - auto-applies as many free
     gallons as the customer currently has, capped at how many gallons are
