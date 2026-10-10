@@ -37,6 +37,17 @@
             <span class="text-red-500 font-semibold">-{{ "%.1f"|format(entry.gallons) }} free gallons na-redeem</span>
             {% if entry.note %}<span class="text-gray-500"> - {{ entry.note }}</span>{% endif %}
           </p>
+          {% elif entry.event_type == 'reversed' %}
+          <p class="text-gray-700">
+            <span class="text-gray-400">{{ entry.display_date }}:</span>
+            <span class="text-red-500 font-semibold">-{{ "%.1f"|format(entry.gallons) }} gallons</span>
+            {% if entry.note %}<span class="text-gray-500"> - {{ entry.note }}</span>{% endif %}
+          </p>
+          {% elif entry.event_type == 'reset' %}
+          <p class="text-gray-700">
+            <span class="text-gray-400">{{ entry.display_date }}:</span>
+            <span class="text-gray-600 font-semibold">Na-reset ang promo sa 0</span>
+          </p>
           {% else %}
           <p class="text-gray-700">
             <span class="text-gray-400">{{ entry.display_date }}:</span> {{ entry.event_type }} - {{ "%.1f"|format(entry.gallons) }} gallons
