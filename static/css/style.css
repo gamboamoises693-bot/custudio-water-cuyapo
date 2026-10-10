@@ -230,7 +230,7 @@ body h1, body h2 { color: #0b2a66; }
 
 /* Phone polish (Android 6"+ : 360-430px wide). Larger tap targets, 16px inputs
    (stops browsers auto-zooming on focus), safe-area padding, no sideways scroll. */
-@media (max-width: 767px) {
+@media (max-width: 767px), (pointer: coarse) {
   body input, body select, body textarea { font-size: 16px; }
   body button, body a.bg-aqua-500, body a.bg-aqua-600 { min-height: 40px; }
   main { padding-left: 14px; padding-right: 14px; }
@@ -243,3 +243,6 @@ main, .mg-auth { overflow-wrap: anywhere; }
 .navbar-mg.rounded-b-3xl { border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
 .navbar-mg > * { position: relative; z-index: 1; }
 .navbar-mg > .menu-panel { position: absolute; z-index: 2; }
+
+/* MG order card: colored left accent (color is set per status inline) */
+body .bg-white.rounded-2xl.mg-order-card { border-left: 5px solid var(--mg-blue); }
