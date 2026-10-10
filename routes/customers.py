@@ -3,10 +3,11 @@
 import io
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, abort, current_app
-from auth import login_required, role_required, super_admin_required
+from auth import login_required, role_required, super_admin_required, owner_or_super_admin_required
 from models import customers as customers_model
 from models import chats as chats_model
 from models import customer_auth
+from models import loyalty as loyalty_model
 
 customers_bp = Blueprint("customers", __name__, url_prefix="/customers")
 
@@ -267,6 +268,29 @@ def qr_regenerate(customer_id):
         return redirect(url_for("customers.list_view"))
     customers_model.regenerate_qr_token(customer_id)
     flash(f"Bagong QR code na para kay {customer.get('name')}. Hindi na gagana ang lumang QR nya.", "success")
+    return redirect(url_for("customers.list_view"))
+
+
+@customers_bp.route("/loyalty-reset-all", methods=["POST"])
+@login_required
+@owner_or_super_admin_required
+def loyalty_reset_all():
+    """Wipes the promo card (gallons + free credit) of EVERY customer -
+    for starting fresh after deleting test/old data."""
+    count = loyalty_model.reset_all_loyalty()
+    flash(f"Na-reset ang promo ng {count} customer.", "success")
+    return redirect(url_for("customers.list_view"))
+
+
+@customers_bp.route("/<customer_id>/loyalty-reset", methods=["POST"])
+@login_required
+@owner_or_super_admin_required
+def loyalty_reset(customer_id):
+    """Wipes ONE customer's promo card back to 0 gallons / 0 free credit."""
+    if loyalty_model.reset_loyalty(customer_id):
+        flash("Na-reset ang promo ng customer.", "success")
+    else:
+        flash("Hindi nahanap ang customer.", "danger")
     return redirect(url_for("customers.list_view"))
 
 
