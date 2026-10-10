@@ -5,20 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{% block title %}Custodio Water{% endblock %} - Purok 6 Malineng, Cuyapo N.E.</title>
 <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-<meta name="theme-color" content="#00a8e8">
+<meta name="theme-color" content="#0A6CFF">
 <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icon-192.png') }}">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Custodio Water">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
     theme: {
       extend: {
         colors: {
+          // MG-CASH "GCash-style" blue ramp (kept under the name "aqua" so
+          // every existing template re-skins without being edited).
           aqua: {
-            50: '#e6f7fd', 100: '#cceffb', 200: '#99dff7', 300: '#66cff3',
-            400: '#33bfef', 500: '#00a8e8', 600: '#0086ba', 700: '#00658c',
-            800: '#00435e', 900: '#002230'
+            50: '#EAF2FF', 100: '#D6E6FF', 200: '#ADCDFF', 300: '#85B4FF',
+            400: '#4D90FF', 500: '#0A6CFF', 600: '#0857CC', 700: '#06429A',
+            800: '#042D66', 900: '#021A3D'
           }
         }
       }
@@ -26,156 +31,106 @@
   }
 </script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-<style>
-  body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-  .nav-link.active { background-color: #e6f7fd; color: #0086ba; font-weight: 600; }
-</style>
+
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="min-h-screen">
 
 {% if current_user %}
-<div class="flex min-h-screen">
-  <!-- Sidebar -->
-  <aside class="w-64 bg-white border-r border-gray-200 hidden md:flex md:flex-col">
-    <div class="p-5 border-b border-gray-100">
-      <div class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-10 h-10 rounded-full object-cover shrink-0 bg-aqua-100" onerror="this.onerror=null;this.style.display='none';">
-        <div>
-          <p class="font-bold text-aqua-700 leading-tight">CUSTODIO WATER</p>
-          <p class="text-[10px] font-semibold text-aqua-600 leading-tight tracking-wide">REFILLING STATION</p>
-          <p class="text-xs text-gray-500">Purok 6 Malineng, Cuyapo N.E.</p>
-        </div>
-      </div>
-    </div>
-    <nav class="flex-1 p-3 space-y-1 text-sm">
-      <a href="{{ url_for('sales.dashboard') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'sales.dashboard' }}">📊 Dashboard</a>
-      <a href="{{ url_for('customers.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'customers.list_view' }}">👥 Customers</a>
-      <a href="{{ url_for('chats.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'chats' and request.endpoint != 'chats.broadcast' }}">
-        💬 Chats
-        {% if unread_chats and unread_chats > 0 %}
-          <span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ unread_chats }}</span>
-        {% endif %}
-      </a>
-      <a href="{{ url_for('chats.broadcast') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'chats.broadcast' }}">📢 Broadcast</a>
-      <a href="{{ url_for('orders.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'orders.list_view' }}">🧾 Orders</a>
-      <a href="{{ url_for('deliveries.rider_app') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'deliveries' }}">🚚 Deliveries</a>
-      <a href="{{ url_for('inventory.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'inventory' }}">🛢️ Inventory</a>
-      <a href="{{ url_for('sales.reports') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'sales.reports' }}">📈 Reports</a>
-      {% if current_user.is_super_admin %}
-      <a href="{{ url_for('customers.activity_log') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'customers.activity_log' }}">🔐 Customer Portal Activity</a>
-      <a href="{{ url_for('customers.video_playlist_admin') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.endpoint == 'customers.video_playlist_admin' }}">🎬 Video Playlist</a>
-      <a href="{{ url_for('accounts.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-aqua-50 {{ 'active' if request.blueprint == 'accounts' }}">👤 Accounts</a>
+{# Single nav definition used by the hamburger dropdown (all screen sizes).
+   Tuple: (endpoint, label, is_active) #}
+{% set nav_items = [
+  ('sales.dashboard', '📊 Dashboard', request.endpoint == 'sales.dashboard'),
+  ('customers.list_view', '👥 Customers', request.endpoint == 'customers.list_view'),
+  ('chats.list_view', '💬 Chats', request.blueprint == 'chats' and request.endpoint != 'chats.broadcast'),
+  ('chats.broadcast', '📢 Broadcast', request.endpoint == 'chats.broadcast'),
+  ('orders.list_view', '🧾 Orders', request.endpoint == 'orders.list_view'),
+  ('deliveries.rider_app', '🚚 Deliveries', request.blueprint == 'deliveries'),
+  ('inventory.list_view', '🛢️ Inventory', request.blueprint == 'inventory'),
+  ('sales.reports', '📈 Reports', request.endpoint == 'sales.reports'),
+] %}
+{% set admin_items = [
+  ('customers.activity_log', '🔐 Customer Portal Activity', request.endpoint == 'customers.activity_log'),
+  ('customers.video_playlist_admin', '🎬 Video Playlist', request.endpoint == 'customers.video_playlist_admin'),
+  ('accounts.list_view', '👤 Accounts', request.blueprint == 'accounts'),
+] %}
+
+<!-- MG-CASH style gradient navbar + white hamburger dropdown -->
+<nav class="navbar-mg sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <a href="{{ url_for('sales.dashboard') }}" class="flex items-center gap-2 min-w-0 text-white no-underline">
+      <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-9 h-9 rounded-full object-cover shrink-0 bg-white p-0.5" onerror="this.onerror=null;this.style.display='none';">
+      <span class="font-bold leading-tight text-sm truncate">CUSTODIO WATER<br><span class="text-[10px] font-medium opacity-80 tracking-wide">REFILLING STATION · Cuyapo</span></span>
+    </a>
+    <div class="flex items-center gap-2 shrink-0">
+      {% if unread_chats and unread_chats > 0 %}
+      <a href="{{ url_for('chats.list_view') }}" class="bg-red-500 text-white text-xs font-bold rounded-full px-2.5 py-1" aria-label="Unread chats">💬 {{ unread_chats }}</a>
       {% endif %}
-    </nav>
-    <div class="p-4 border-t border-gray-100 text-sm">
-      <p class="font-medium text-gray-800">{{ current_user.name }}</p>
-      <p class="text-xs text-gray-500 capitalize">{{ current_user.role }}</p>
-      <a href="{{ url_for('auth.logout') }}" class="text-xs text-aqua-600 hover:underline">Logout</a>
-      {% if current_user.is_super_admin and push_enabled %}
-      <button type="button" onclick="enableIsesmoPush()" id="pushBtn" class="block text-xs text-aqua-600 hover:underline mt-1">🔔 Enable Notifications</button>
-      {% endif %}
-      {% if push_debug %}
-      <!-- Diagnostic-only, Isesmo-only (see app.py's inject_globals()):
-           shows EXACTLY which piece of the VAPID setup is missing instead
-           of a silent "no button" - so a Render env-var mistake is visible
-           right here instead of being guessed at over chat. -->
-      <div class="mt-2 text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 space-y-0.5">
-        <p class="font-semibold">⚠️ Push hindi pa configured:</p>
-        <p>pywebpush library: {{ "OK" if push_debug.pywebpush_installed else "MISSING (check requirements.txt)" }}</p>
-        <p>VAPID_PUBLIC_KEY: {{ "naka-set (" ~ push_debug.public_key_length ~ " chars)" if push_debug.public_key_set else "WALA / EMPTY" }}</p>
-        <p>VAPID_PRIVATE_KEY: {{ "naka-set (" ~ push_debug.private_key_length ~ " chars)" if push_debug.private_key_set else "WALA / EMPTY" }}</p>
-        {% if push_debug.private_key_set and not push_debug.private_key_looks_like_pem %}
-        <p class="font-semibold">⚠️ Mali ang format ng private key - dapat nagsisimula sa "-----BEGIN PRIVATE KEY-----"</p>
-        {% endif %}
-      </div>
-      {% endif %}
-      <p class="text-[10px] text-gray-300 mt-3">Developed by Moises Orio Gamboa</p>
+      <button type="button" id="menuToggle" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')" class="menu-btn" aria-label="Menu">☰</button>
     </div>
-  </aside>
-
-  <!-- Mobile top bar -->
-  <div class="flex-1 flex flex-col min-w-0">
-    <div class="md:hidden bg-aqua-500 text-white p-4 flex items-center justify-between relative z-40">
-      <button type="button" onclick="document.getElementById('mobileMenu').classList.toggle('hidden')" class="text-2xl leading-none px-1 -ml-1" aria-label="Menu">☰</button>
-      <span class="flex items-center gap-2">
-        <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-8 h-8 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
-        <span class="font-bold text-sm leading-tight">CUSTODIO WATER<br><span class="text-[10px] font-semibold tracking-wide">REFILLING STATION - Cuyapo</span></span>
-      </span>
-      <a href="{{ url_for('auth.logout') }}" class="text-xs underline shrink-0">Logout</a>
-    </div>
-
-    <!-- Mobile hamburger dropdown - full menu (everything the desktop sidebar has) -->
-    <div id="mobileMenu" class="hidden md:hidden bg-white border-b border-gray-200 shadow-lg absolute top-[64px] left-0 right-0 z-30 max-h-[80vh] overflow-y-auto">
-      <nav class="p-3 space-y-1 text-sm">
-        <a href="{{ url_for('sales.dashboard') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'sales.dashboard' }}">📊 Dashboard</a>
-        <a href="{{ url_for('customers.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'customers.list_view' }}">👥 Customers</a>
-        <a href="{{ url_for('chats.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'chats' and request.endpoint != 'chats.broadcast' }}">
-          💬 Chats
-          {% if unread_chats and unread_chats > 0 %}<span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ unread_chats }}</span>{% endif %}
-        </a>
-        <a href="{{ url_for('chats.broadcast') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'chats.broadcast' }}">📢 Broadcast</a>
-        <a href="{{ url_for('orders.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'orders.list_view' }}">🧾 Orders</a>
-        <a href="{{ url_for('deliveries.rider_app') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'deliveries' }}">🚚 Deliveries</a>
-        <a href="{{ url_for('inventory.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'inventory' }}">🛢️ Inventory</a>
-        <a href="{{ url_for('sales.reports') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'sales.reports' }}">📈 Reports</a>
-        {% if current_user.is_super_admin %}
-        <a href="{{ url_for('customers.activity_log') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'customers.activity_log' }}">🔐 Customer Portal Activity</a>
-        <a href="{{ url_for('customers.video_playlist_admin') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.endpoint == 'customers.video_playlist_admin' }}">🎬 Video Playlist</a>
-        <a href="{{ url_for('accounts.list_view') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 {{ 'active' if request.blueprint == 'accounts' }}">👤 Accounts</a>
-        {% endif %}
-        <div class="border-t border-gray-100 mt-2 pt-2">
-          <p class="px-3 text-xs text-gray-500">{{ current_user.name }} · <span class="capitalize">{{ current_user.role }}</span></p>
-          <a href="{{ url_for('auth.logout') }}" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700">🚪 Logout</a>
-          {% if current_user.is_super_admin and push_enabled %}
-          <!-- Mobile copy of the desktop sidebar's push button (see above -
-               that one is inside a "hidden md:flex" <aside>, invisible on
-               phone screens, which was the ACTUAL reason it never showed
-               up for a mobile-only user). Uses the SAME id="pushBtn" +
-               enableIsesmoPush() function, so whichever one renders (mobile
-               or desktop) behaves identically - no separate JS needed. -->
-          <button type="button" onclick="enableIsesmoPush()" id="pushBtnMobile" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 w-full text-left">🔔 Enable Notifications</button>
-          {% endif %}
-          {% if push_debug %}
-          <div class="mx-3 mt-2 text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 space-y-0.5">
-            <p class="font-semibold">⚠️ Push hindi pa configured:</p>
-            <p>pywebpush library: {{ "OK" if push_debug.pywebpush_installed else "MISSING (check requirements.txt)" }}</p>
-            <p>VAPID_PUBLIC_KEY: {{ "naka-set (" ~ push_debug.public_key_length ~ " chars)" if push_debug.public_key_set else "WALA / EMPTY" }}</p>
-            <p>VAPID_PRIVATE_KEY: {{ "naka-set (" ~ push_debug.private_key_length ~ " chars)" if push_debug.private_key_set else "WALA / EMPTY" }}</p>
-            {% if push_debug.private_key_set and not push_debug.private_key_looks_like_pem %}
-            <p class="font-semibold">⚠️ Mali ang format ng private key - dapat nagsisimula sa "-----BEGIN PRIVATE KEY-----"</p>
-            {% endif %}
-          </div>
-          {% endif %}
-          <p class="px-3 text-[10px] text-gray-300 mt-1">Developed by Moises Orio Gamboa</p>
-        </div>
-      </nav>
-    </div>
-
-    <main class="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="mb-4 space-y-2">
-          {% for category, message in messages %}
-            {% set color = {'success':'bg-green-100 text-green-800 border-green-300','danger':'bg-red-100 text-red-800 border-red-300','warning':'bg-yellow-100 text-yellow-800 border-yellow-300'}.get(category, 'bg-aqua-100 text-aqua-800 border-aqua-300') %}
-            <div class="border {{ color }} px-4 py-2 rounded-lg text-sm">{{ message }}</div>
-          {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
-
-      {% block content %}{% endblock %}
-    </main>
-
-    <div class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 text-xs">
-      <a href="{{ url_for('sales.dashboard') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.endpoint == 'sales.dashboard' else 'text-gray-500' }}">📊<span>Home</span></a>
-      <a href="{{ url_for('customers.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.endpoint == 'customers.list_view' else 'text-gray-500' }}">👥<span>Cust.</span></a>
-      <a href="{{ url_for('chats.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.blueprint == 'chats' else 'text-gray-500' }}">💬<span>Chats</span></a>
-      <a href="{{ url_for('orders.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.endpoint == 'orders.list_view' else 'text-gray-500' }}">🧾<span>Orders</span></a>
-      <a href="{{ url_for('deliveries.rider_app') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600' if request.blueprint == 'deliveries' else 'text-gray-500' }}">🚚<span>Deliver</span></a>
-    </div>
-    <div class="h-16 md:hidden"></div>
   </div>
+
+  <div id="mobileMenu" class="hidden menu-panel">
+    <nav class="p-2 text-sm">
+      {% for endpoint, label, active in nav_items %}
+      <a href="{{ url_for(endpoint) }}" class="nav-link flex items-center gap-2 px-3 py-2.5 rounded-xl text-gray-700 {{ 'active' if active }}">
+        {{ label }}
+        {% if endpoint == 'chats.list_view' and unread_chats and unread_chats > 0 %}<span class="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{{ unread_chats }}</span>{% endif %}
+      </a>
+      {% endfor %}
+      {% if current_user.is_super_admin %}
+      {% for endpoint, label, active in admin_items %}
+      <a href="{{ url_for(endpoint) }}" class="nav-link flex items-center gap-2 px-3 py-2.5 rounded-xl text-gray-700 {{ 'active' if active }}">{{ label }}</a>
+      {% endfor %}
+      {% endif %}
+      <div class="border-t border-gray-100 mt-2 pt-2">
+        <p class="px-3 text-xs text-gray-500">{{ current_user.name }} · <span class="capitalize">{{ current_user.role }}</span></p>
+        {% if current_user.is_super_admin and push_enabled %}
+        <button type="button" onclick="enableIsesmoPush()" id="pushBtn" class="nav-link flex items-center gap-2 px-3 py-2.5 rounded-xl text-gray-700 w-full text-left">🔔 Enable Notifications</button>
+        {% endif %}
+        <a href="{{ url_for('auth.logout') }}" class="nav-link flex items-center gap-2 px-3 py-2.5 rounded-xl text-gray-700">🚪 Logout</a>
+        {% if push_debug %}
+        <!-- Diagnostic-only, Isesmo-only (see app.py's inject_globals()):
+             shows EXACTLY which piece of the VAPID setup is missing. -->
+        <div class="mx-3 mt-2 text-[10px] bg-red-50 border border-red-200 text-red-700 rounded-lg p-2 space-y-0.5">
+          <p class="font-semibold">⚠️ Push hindi pa configured:</p>
+          <p>pywebpush library: {{ "OK" if push_debug.pywebpush_installed else "MISSING (check requirements.txt)" }}</p>
+          <p>VAPID_PUBLIC_KEY: {{ "naka-set (" ~ push_debug.public_key_length ~ " chars)" if push_debug.public_key_set else "WALA / EMPTY" }}</p>
+          <p>VAPID_PRIVATE_KEY: {{ "naka-set (" ~ push_debug.private_key_length ~ " chars)" if push_debug.private_key_set else "WALA / EMPTY" }}</p>
+          {% if push_debug.private_key_set and not push_debug.private_key_looks_like_pem %}
+          <p class="font-semibold">⚠️ Mali ang format ng private key - dapat nagsisimula sa "-----BEGIN PRIVATE KEY-----"</p>
+          {% endif %}
+        </div>
+        {% endif %}
+        <p class="px-3 text-[10px] text-gray-300 mt-1 mb-1">Developed by Moises Orio Gamboa</p>
+      </div>
+    </nav>
+  </div>
+</nav>
+
+<main class="w-full max-w-7xl mx-auto p-4 md:p-6">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="mb-4 space-y-2">
+      {% for category, message in messages %}
+        {% set color = {'success':'bg-green-100 text-green-800 border-green-300','danger':'bg-red-100 text-red-800 border-red-300','warning':'bg-yellow-100 text-yellow-800 border-yellow-300'}.get(category, 'bg-aqua-100 text-aqua-800 border-aqua-300') %}
+        <div class="border {{ color }} px-4 py-2 rounded-xl text-sm">{{ message }}</div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Mobile bottom nav (kept for one-thumb use; styled like MG-CASH cards) -->
+<div class="md:hidden fixed bottom-0 left-0 right-0 bottom-nav flex justify-around py-2 text-xs z-30">
+  <a href="{{ url_for('sales.dashboard') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600 font-semibold' if request.endpoint == 'sales.dashboard' else 'text-gray-500' }}">📊<span>Home</span></a>
+  <a href="{{ url_for('customers.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600 font-semibold' if request.endpoint == 'customers.list_view' else 'text-gray-500' }}">👥<span>Cust.</span></a>
+  <a href="{{ url_for('chats.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600 font-semibold' if request.blueprint == 'chats' else 'text-gray-500' }}">💬<span>Chats</span></a>
+  <a href="{{ url_for('orders.list_view') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600 font-semibold' if request.endpoint == 'orders.list_view' else 'text-gray-500' }}">🧾<span>Orders</span></a>
+  <a href="{{ url_for('deliveries.rider_app') }}" class="flex flex-col items-center px-2 {{ 'text-aqua-600 font-semibold' if request.blueprint == 'deliveries' else 'text-gray-500' }}">🚚<span>Deliver</span></a>
 </div>
+<div class="h-16 md:hidden"></div>
 {% else %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -196,7 +151,7 @@
      install, not installed yet). bottom-20 on mobile clears the logged-in
      bottom nav bar (h-16 + spacing); md:bottom-4 since that bar is
      desktop-hidden anyway. -->
-<button type="button" id="pwaInstallBtn" onclick="triggerPwaInstall()" class="hidden fixed bottom-20 md:bottom-4 right-4 z-50 bg-aqua-500 hover:bg-aqua-600 text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg">
+<button type="button" id="pwaInstallBtn" onclick="triggerPwaInstall()" class="hidden fixed bottom-20 md:bottom-4 right-4 z-50 btn-mg text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg">
   📲 I-install ang App
 </button>
 
