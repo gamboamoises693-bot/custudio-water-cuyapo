@@ -3,7 +3,7 @@
 {% block content %}
 <script>document.body.dataset.dashboard = "1";</script>
 <h1 class="text-2xl font-bold text-gray-800 mb-1">Dashboard</h1>
-<p class="text-gray-500 mb-6">{{ today }} - Purok 6 Malineng, Cuyapo N.E.</p>
+<p class="text-sm text-gray-500 mb-4">{{ today }} - Purok 6 Malineng, Cuyapo N.E.</p>
 
 {% if low_tank_alerts %}
   {% for tank in low_tank_alerts %}
@@ -22,40 +22,41 @@
 <!-- Owner + super-admin: Monthly Financials. Staff never sees this - see
      routes/sales.py's dashboard() for the gating logic. -->
 {% if monthly_financials %}
-<p class="text-xs text-gray-500 -mb-2">💰 Financials - mula {{ today[:7] }}-01 hanggang ngayon</p>
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 mt-2">
-  <div class="bg-white rounded-2xl shadow p-5">
-    <p class="text-xs text-gray-500 uppercase tracking-wide">Expenses (Monthly)</p>
-    <p class="text-2xl font-bold text-red-500 mt-1">₱{{ "{:,.2f}".format(monthly_financials.expenses_month) }}</p>
+<p class="text-xs text-gray-500 mt-1">💰 Buwan na ito - mula {{ today[:7] }}-01 hanggang ngayon</p>
+<!-- One compact card with 3 columns (fits a 6-inch phone without 3 tall stacked cards) -->
+<div class="bg-white rounded-2xl shadow p-4 mb-5 mt-2 grid grid-cols-3 divide-x divide-gray-100 text-center">
+  <div class="px-1">
+    <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-tight">Expenses</p>
+    <p class="text-base font-bold text-red-500 mt-1 break-words">₱{{ "{:,.0f}".format(monthly_financials.expenses_month) }}</p>
   </div>
-  <div class="bg-white rounded-2xl shadow p-5">
-    <p class="text-xs text-gray-500 uppercase tracking-wide">Profit (Monthly)</p>
-    <p class="text-2xl font-bold {{ 'text-green-600' if monthly_financials.profit_month >= 0 else 'text-red-600' }} mt-1">₱{{ "{:,.2f}".format(monthly_financials.profit_month) }}</p>
+  <div class="px-1">
+    <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-tight">Profit</p>
+    <p class="text-base font-bold {{ 'text-green-600' if monthly_financials.profit_month >= 0 else 'text-red-600' }} mt-1 break-words">₱{{ "{:,.0f}".format(monthly_financials.profit_month) }}</p>
   </div>
-  <div class="bg-white rounded-2xl shadow p-5">
-    <p class="text-xs text-gray-500 uppercase tracking-wide">Profit Margin (Monthly)</p>
-    <p class="text-2xl font-bold {{ 'text-green-600' if monthly_financials.profit_margin_month >= 0 else 'text-red-600' }} mt-1">{{ "%.1f"|format(monthly_financials.profit_margin_month) }}%</p>
+  <div class="px-1">
+    <p class="text-[10px] text-gray-500 uppercase tracking-wide leading-tight">Margin</p>
+    <p class="text-base font-bold {{ 'text-green-600' if monthly_financials.profit_margin_month >= 0 else 'text-red-600' }} mt-1">{{ "%.1f"|format(monthly_financials.profit_margin_month) }}%</p>
   </div>
 </div>
 {% endif %}
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
   <!-- MG-CASH style hero tile: the headline number (sales today) -->
   <div class="mg-hero col-span-2">
     <p class="text-xs uppercase tracking-wide opacity-80">Sales Today</p>
     <p class="text-3xl font-extrabold mt-1">₱{{ "{:,.2f}".format(totals.total_sales) }}</p>
     <p class="text-xs opacity-80 mt-1">{{ totals.total_containers }} containers</p>
   </div>
-  <div class="bg-white rounded-2xl shadow p-5">
+  <div class="bg-white rounded-2xl shadow p-4">
     <p class="text-xs text-gray-500 uppercase tracking-wide">Delivered / Walk-in</p>
     <p class="text-2xl font-bold text-gray-800 mt-1">{{ walkin_vs_delivered.delivered }} / {{ walkin_vs_delivered.walkin }}</p>
     <p class="text-xs text-gray-500 mt-1">orders today</p>
   </div>
-  <div class="bg-white rounded-2xl shadow p-5">
+  <div class="bg-white rounded-2xl shadow p-4">
     <p class="text-xs text-gray-500 uppercase tracking-wide">GCash / Cash</p>
-    <p class="text-lg font-bold text-gray-800 mt-1">₱{{ "{:,.0f}".format(totals.gcash) }} / ₱{{ "{:,.0f}".format(totals.cash) }}</p>
+    <p class="text-base font-bold text-gray-800 mt-1">₱{{ "{:,.0f}".format(totals.gcash) }} / ₱{{ "{:,.0f}".format(totals.cash) }}</p>
   </div>
-  <div class="bg-white rounded-2xl shadow p-5">
+  <div class="bg-white rounded-2xl shadow p-4 col-span-2 md:col-span-1">
     <p class="text-xs text-gray-500 uppercase tracking-wide">Utang Today</p>
     <p class="text-2xl font-bold text-red-500 mt-1">₱{{ "{:,.2f}".format(totals.utang) }}</p>
   </div>
