@@ -238,3 +238,8 @@ body h1, body h2 { color: #0b2a66; }
   .menu-panel a, .menu-panel button { min-height: 44px; }
 }
 main, .mg-auth { overflow-wrap: anywhere; }
+
+/* Header variants: let page-level padding/rounding classes work with .navbar-mg */
+.navbar-mg.rounded-b-3xl { border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; }
+.navbar-mg > * { position: relative; z-index: 1; }
+.navbar-mg > .menu-panel { position: absolute; z-index: 2; }
