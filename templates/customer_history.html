@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Order History{% endblock %}
 {% block guest_content %}
-<div class="min-h-screen bg-gray-50 pb-10">
-  <div class="bg-aqua-500 text-white p-4 flex items-center gap-3">
+<div class="min-h-screen pb-10">
+  <div class="navbar-mg rounded-b-3xl text-white p-4 flex items-center gap-3">
     <a href="{{ url_for('customer_portal.dashboard_page', customer_id=customer.id) }}" class="text-white text-xl">←</a>
     <p class="font-bold">📋 Order History</p>
   </div>

@@ -19,9 +19,8 @@
   </div>
 {% endif %}
 
-<!-- Owner-only: Monthly Financials (Isesmo/developer account intentionally
-     excluded per owner's request - profit figures are private to the
-     actual business owner, not the app developer). -->
+<!-- Owner + super-admin: Monthly Financials. Staff never sees this - see
+     routes/sales.py's dashboard() for the gating logic. -->
 {% if monthly_financials %}
 <p class="text-xs text-gray-500 -mb-2">💰 Financials - mula {{ today[:7] }}-01 hanggang ngayon</p>
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 mt-2">
@@ -41,10 +40,11 @@
 {% endif %}
 
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-  <div class="bg-white rounded-2xl shadow p-5">
-    <p class="text-xs text-gray-500 uppercase tracking-wide">Sales Today</p>
-    <p class="text-2xl font-bold text-aqua-700 mt-1">₱{{ "{:,.2f}".format(totals.total_sales) }}</p>
-    <p class="text-xs text-gray-500 mt-1">{{ totals.total_containers }} containers</p>
+  <!-- MG-CASH style hero tile: the headline number (sales today) -->
+  <div class="mg-hero col-span-2">
+    <p class="text-xs uppercase tracking-wide opacity-80">Sales Today</p>
+    <p class="text-3xl font-extrabold mt-1">₱{{ "{:,.2f}".format(totals.total_sales) }}</p>
+    <p class="text-xs opacity-80 mt-1">{{ totals.total_containers }} containers</p>
   </div>
   <div class="bg-white rounded-2xl shadow p-5">
     <p class="text-xs text-gray-500 uppercase tracking-wide">Delivered / Walk-in</p>

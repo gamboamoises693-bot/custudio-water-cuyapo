@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Customer Dashboard{% endblock %}
 {% block guest_content %}
-<div class="min-h-screen bg-gray-50 pb-20">
-  <div class="bg-aqua-500 text-white p-4 flex items-center justify-between relative z-40">
+<div class="min-h-screen pb-20">
+  <div class="navbar-mg rounded-b-3xl text-white p-4 flex items-center justify-between z-40">
     <div class="flex items-center gap-2 min-w-0">
       <button type="button" onclick="document.getElementById('customerMenu').classList.toggle('hidden')" class="text-2xl leading-none px-1 -ml-1 shrink-0" aria-label="Menu">☰</button>
       <img src="{{ url_for('static', filename=logo_filename) }}" alt="Custodio Water" class="w-9 h-9 rounded-full object-cover shrink-0 bg-white" onerror="this.onerror=null;this.style.display='none';">
@@ -18,7 +18,7 @@
   <!-- Hamburger dropdown: Mag-order / Order History / Chat Owner / Palitan
        Password all live here now, off the main screen, per owner's
        request - tap outside or an item to close it. -->
-  <div id="customerMenu" class="hidden bg-white border-b border-gray-200 shadow-lg absolute top-[64px] left-0 right-0 z-30">
+  <div id="customerMenu" class="hidden bg-white rounded-b-3xl shadow-lg absolute top-[72px] left-0 right-0 z-30">
     <nav class="max-w-md mx-auto p-3 space-y-1 text-sm">
       <a href="{{ url_for('customer_portal.order_page', customer_id=customer.id) }}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50">💧 Mag-order</a>
       <a href="{{ url_for('customer_portal.history_page', customer_id=customer.id) }}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-50">📋 Order History</a>

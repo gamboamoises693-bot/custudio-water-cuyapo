@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Chat Owner{% endblock %}
 {% block guest_content %}
-<div class="min-h-screen bg-gray-50 flex flex-col">
-  <div class="bg-aqua-500 text-white p-4 flex items-center gap-3 shrink-0">
+<div class="min-h-screen flex flex-col">
+  <div class="navbar-mg rounded-b-3xl text-white p-4 flex items-center gap-3 shrink-0">
     <a href="{{ url_for('customer_portal.dashboard_page', customer_id=customer.id) }}" class="text-white text-xl">←</a>
     <p class="font-bold">💬 Chat Owner</p>
   </div>
