@@ -30,7 +30,15 @@
     }
   }
 </script>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<!-- Pre-compiled Tailwind (static/css/tailwind.css) loads BEFORE first paint, so
+     classes like "hidden md:block" already work while the CDN script below is
+     still downloading. Without it, the page flashes UNSTYLED (desktop table,
+     full-size logo...) and the phone browser zooms out to fit that wide content
+     = the "desktop view" bug. The CDN script stays as a safety net for any
+     brand-new class that is not in the pre-compiled file yet. -->
+<style>.hidden{display:none}html{-webkit-text-size-adjust:100%}img{max-width:100%}</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}?v=2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3">
 
 </head>
 <body class="min-h-screen">
