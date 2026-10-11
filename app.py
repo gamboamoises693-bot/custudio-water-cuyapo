@@ -119,6 +119,14 @@ def create_app():
         })
         return jsonify({"ok": True})
 
+    @app.route("/healthz", methods=["GET", "HEAD"])
+    def healthz():
+        """Ultra-light keep-alive endpoint for an uptime monitor (e.g.
+        UptimeRobot). No login, no database, no session - so a ping every
+        few minutes costs almost nothing and keeps Render's free instance
+        from going to sleep (which is what causes the slow first load)."""
+        return "ok", 200, {"Cache-Control": "no-store"}
+
     @app.route("/")
     def index():
         if "user_id" in session:
